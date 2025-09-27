@@ -55,18 +55,31 @@
         .dark-icon-filter {
             filter: invert(100%) sepia(0%) saturate(7500%) hue-rotate(180deg) brightness(105%) contrast(101%);
         }
+
+        /* Animasi untuk notifikasi floating */
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(20px); }
+            10%, 90% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-out {
+            animation: fadeInOut 4s ease-in-out forwards;
+        }
     </style>
 </head>
 <body class="bg-white">
 
-    <div id="app" class="h-screen w-screen">
-        <!-- Konten loading awal dikembalikan ke versi SVG -->
-        <div class="flex items-center justify-center h-full">
-            <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+    <div id="app" class="h-screen w-screen relative">
+        <div id="app-content" class="h-full w-full">
+            <!-- Konten loading awal dikembalikan ke versi SVG -->
+            <div class="flex items-center justify-center h-full">
+                <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
         </div>
+        <!-- Kontainer untuk notifikasi floating -->
+        <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
     </div>
 
     <!-- Firebase CDN Imports -->
@@ -277,9 +290,8 @@
         const handleSaveNote = (internalCall = false) => {
             if (appState.isSaving && !internalCall) return;
             
-            // Ambil nilai dari DOM untuk memastikan sinkronisasi
             const titleEditor = document.getElementById('title-editor');
-            const contentEditor = document.getElementById('content-editor') || document.getElementById('secret-content-editor');
+            const contentEditor = document.getElementById('content-editor');
             if (titleEditor) appState.title = titleEditor.value;
             if (contentEditor) appState.content = contentEditor.value;
 
@@ -360,25 +372,26 @@
         };
         
         // --- LOGIKA PENGATURAN BARU (DIADOPSI) ---
-        const syncAndCreateTrickNotes = () => {
-            const allNotes = getLocalNotes();
-            const nonTrickNotes = allNotes.filter(n => 
-                n.title !== 'List Benda Acak' && n.title !== 'Clipboard Cepat' && !isMatchingSecretKeyword(n.title, appState.secretKeyword)
+        const syncTrickNotes = () => {
+            const { appMode, hallucinationNoteTitle, mindReadingNoteTitle } = appState;
+            let allNotes = getLocalNotes();
+
+            // Hapus catatan trik lama berdasarkan ID unik
+            let nonTrickNotes = allNotes.filter(n => 
+                n.id !== 'trick_note_Hallucination' && n.id !== 'trick_note_MindReading'
             );
 
             let trickNote = null;
-            if (appState.appMode === 'Hallucination') {
+            if (appMode === 'Hallucination') {
                 const content = generateRandomListContent(appState.startItemsList, false);
-                trickNote = { id: 'trick_note', title: 'List Benda Acak', content, createdAt: Date.now(), updatedAt: Date.now() };
-            } else if (appState.appMode === 'MindReading') {
+                trickNote = { id: 'trick_note_Hallucination', title: hallucinationNoteTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
+            } else if (appMode === 'MindReading') {
                 const content = generateRandomListContent(appState.startItemsList, true);
-                trickNote = { id: 'trick_note', title: 'Clipboard Cepat', content, createdAt: Date.now(), updatedAt: Date.now() };
+                trickNote = { id: 'trick_note_MindReading', title: mindReadingNoteTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
             }
 
             const finalNotes = trickNote ? [...nonTrickNotes, trickNote] : nonTrickNotes;
-            const secretNote = allNotes.find(n => isMatchingSecretKeyword(n.title, appState.secretKeyword));
-            if (secretNote) finalNotes.push(secretNote);
-
+            
             saveLocalNotes(finalNotes);
             appState.notes = sortNotes(finalNotes);
         };
@@ -389,11 +402,14 @@
                 showStatus("Kata kunci tidak valid atau sama!", true); return;
             }
             saveSecretKeyword(trimmedKeyword);
-            setState({ secretKeyword: trimmedKeyword });
             
-            // Update judul catatan rahasia yang sedang aktif
-            setState({ title: trimmedKeyword });
-            handleSaveNote(true); // Simpan perubahan judul
+            // Perbarui judul catatan rahasia yang sedang aktif
+            const updatedNotes = appState.notes.map(n => 
+                n.id === appState.activeNoteId ? {...n, title: trimmedKeyword} : n
+            );
+            saveLocalNotes(updatedNotes);
+
+            setState({ secretKeyword: trimmedKeyword, title: trimmedKeyword, notes: updatedNotes });
             showStatus("Kata Kunci Rahasia diperbarui.", false);
         };
 
@@ -434,7 +450,7 @@
                 setState({ endItemsList: newItems });
             }
             
-            syncAndCreateTrickNotes();
+            syncTrickNotes();
             showStatus(`Daftar ${listType === 'start' ? 'Awal' : 'Akhir'} diperbarui.`, false);
             setState({}); // Trigger re-render
         };
@@ -447,7 +463,7 @@
             }
             saveAppMode(newMode);
             setState({ appMode: newMode });
-            syncAndCreateTrickNotes();
+            syncTrickNotes();
             setupMindReadingListener();
             showStatus(`Mode diubah ke: ${newMode}`, false);
         };
@@ -491,16 +507,19 @@
         };
         
         const renderNoteEditor = () => {
-            const isTrickNoteActive = (appState.appMode === 'Hallucination' && appState.title === 'List Benda Acak') || (appState.appMode === 'MindReading' && appState.title === 'Clipboard Cepat');
-            const deleteButton = (appState.activeNoteId && appState.activeNoteId !== 'new' && appState.activeNoteId !== 'trick_note') ? `
+            const isHallucinationNote = appState.appMode === 'Hallucination' && appState.title === appState.hallucinationNoteTitle;
+            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
+            const isTrickNoteActive = isHallucinationNote || isMindReadingNote;
+
+            const deleteButton = (appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `
                 <button onclick="window.handleDeleteNote()" class="p-2 text-red-500 transition rounded-full hover:bg-red-100">${Icons.Trash2}</button>
             ` : '';
             const saveButtonClass = appState.isSaving ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-600';
 
             let extraAttributes = '';
-            if (appState.appMode === 'Hallucination' && appState.title === 'List Benda Acak') {
+            if (isHallucinationNote) {
                 extraAttributes = `onclick="window.handleHallucinationTrigger()"`;
-            } else if (appState.appMode === 'MindReading' && appState.title === 'Clipboard Cepat') {
+            } else if (isMindReadingNote) {
                 extraAttributes = `onmousedown="window.startLongPress(event)" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress(event)" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
             }
 
@@ -525,7 +544,7 @@
                         placeholder="Isi catatan Anda di sini..."
                         class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
                         ${extraAttributes}
-                        ${isTrickNoteActive ? 'readonly' : ''}
+                        ${isMindReadingNote ? 'readonly' : ''}
                     >${appState.content}</textarea>
                 </div>
             `;
@@ -533,7 +552,6 @@
 
         const renderSecretSettingsPanel = () => {
             const { secretKeyword, customId, statusMessage, appMode, startItemsList, endItemsList, isSaving } = appState;
-            const statusHtml = statusMessage ? `<div class="p-3 my-4 rounded-lg font-semibold ${statusMessage.isError ? 'bg-red-700 text-white' : 'bg-green-600 text-white'}">${statusMessage.message}</div>` : '';
             
             const ItemListForm = (type, list) => `
                 <div class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col mt-4">
@@ -546,13 +564,12 @@
             return `
                 <div class="flex flex-col h-full bg-gray-900 text-white p-4 font-sans secret-panel-container">
                     <header class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3 flex-shrink-0">
-                        <button onclick="handleBackToList()" class="p-2 text-red-400 rounded-full hover:bg-gray-700">${Icons.Lock}</button>
+                        <button onclick="handleBackToList()" class="p-2 text-gray-700 rounded-full hover:bg-gray-800">${Icons.ArrowLeft.replace('class="', 'class="dark-icon-filter ')}</button>
                         <h1 class="text-xl font-mono tracking-widest text-red-500 flex items-center">${Icons.Settings} PENGATURAN</h1>
-                        <button onclick="handleSaveNote(true)" ${isSaving ? 'disabled' : ''} class="p-2 rounded-full ${isSaving ? 'bg-gray-700' : 'bg-green-500'} text-white">${isSaving ? Icons.Loader2.replace('class="','class="animate-spin "') : Icons.Save}</button>
+                        <div class="w-10"></div>
                     </header>
 
                     <div class="flex-grow overflow-y-auto space-y-6 pb-6">
-                        ${statusHtml}
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl space-y-4">
                             <h2 class="text-lg font-bold text-indigo-400 flex items-center">${Icons.Unlock} Akses Rahasia</h2>
                             <div>
@@ -576,10 +593,6 @@
                            ${appMode === 'Hallucination' ? ItemListForm('end', endItemsList) : ''}
                         </div>
                         
-                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
-                            <h2 class="text-lg font-bold text-indigo-400 mb-2">Konten Rahasia</h2>
-                            <textarea id="secret-content-editor" oninput="handleLiveInput('content', this.value)" class="w-full h-40 bg-gray-700 p-3 rounded-lg resize-none">${appState.content}</textarea>
-                        </div>
                     </div>
                 </div>
             `;
@@ -637,27 +650,42 @@
                 customId: getCustomId(),
             });
 
-            syncAndCreateTrickNotes();
+            syncTrickNotes();
             
             setState({ isLoading: false });
             setupMindReadingListener();
         };
 
         const renderApp = () => {
-            const appDiv = document.getElementById('app');
-            if (!appDiv) return;
+            const appContentDiv = document.getElementById('app-content');
+            if (!appContentDiv) return;
+            const statusContainer = document.getElementById('status-container');
             
             if (appState.isLoading) {
-                 appDiv.innerHTML = `<div class="flex items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+                 appContentDiv.innerHTML = `<div class="flex items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
                  return;
             }
 
             const isSecretNote = appState.activeNoteId && isMatchingSecretKeyword(appState.title, appState.secretKeyword);
             
             if (appState.activeNoteId !== null) {
-                appDiv.innerHTML = isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor();
+                appContentDiv.innerHTML = isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor();
             } else {
-                appDiv.innerHTML = renderNoteList();
+                appContentDiv.innerHTML = renderNoteList();
+            }
+
+            // Render status message
+            if (statusContainer) {
+                if (appState.statusMessage) {
+                    const { message, isError } = appState.statusMessage;
+                    statusContainer.innerHTML = `
+                        <div class="pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out">
+                            ${message}
+                        </div>
+                    `;
+                } else {
+                    statusContainer.innerHTML = '';
+                }
             }
             
             // Expose Global functions
