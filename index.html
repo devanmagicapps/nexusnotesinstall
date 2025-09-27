@@ -483,11 +483,20 @@
             setState({}); // Trigger re-render
         };
 
-        const handleModeChange = (newMode) => {
-            if (newMode === 'MindReading' && appState.customId.length !== 4) {
-                 showStatus("Mode Mind Reading memerlukan Custom ID 4 digit.", true);
-                 renderApp(); // Re-render untuk mengembalikan pilihan radio
-                 return;
+        const handleModeChange = async (newMode) => {
+            if (newMode === 'MindReading') {
+                if (appState.customId.length !== 4) {
+                    showStatus("Mode Mind Reading memerlukan Custom ID 4 digit.", true);
+                    renderApp(); // Re-render untuk mengembalikan pilihan radio
+                    return;
+                }
+                // Cek apakah ID aktif di server saat beralih mode
+                const isActive = await isIdActiveOnFirebase(appState.customId);
+                if (!isActive) {
+                    showStatus("ID Kustom tidak aktif di server. Mode tidak bisa dialihkan.", true);
+                    renderApp();
+                    return;
+                }
             }
             saveAppMode(newMode);
             setState({ appMode: newMode });
@@ -692,13 +701,30 @@
                 }
             } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
 
-            setState({
+            // Muat pengaturan awal
+            const initialSettings = {
                 secretKeyword: getSecretKeyword(),
                 appMode: getAppMode(),
                 startItemsList: getItemsList(START_ITEMS_LIST_KEY, DEFAULT_START_ITEMS_20),
                 endItemsList: getItemsList(END_ITEMS_LIST_KEY, DEFAULT_END_ITEMS_19),
                 customId: getCustomId(),
-            });
+            };
+            Object.assign(appState, initialSettings);
+
+            // Cek validitas ID jika mode adalah Mind Reading saat aplikasi dibuka
+            if (appState.appMode === 'MindReading') {
+                const idIsValid = appState.customId && /^\d{4}$/.test(appState.customId);
+                let isServerActive = false;
+                if(idIsValid) {
+                    isServerActive = await isIdActiveOnFirebase(appState.customId);
+                }
+
+                if (!isServerActive) {
+                    showStatus("ID Kustom tidak valid, mode dialihkan.", true);
+                    appState.appMode = 'Hallucination';
+                    saveAppMode('Hallucination');
+                }
+            }
 
             syncTrickNotes();
             
