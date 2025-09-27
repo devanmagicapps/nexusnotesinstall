@@ -249,6 +249,18 @@
             }
         };
 
+        const isIdActiveOnFirebase = async (id) => {
+            if (!db || !/^\d{4}$/.test(id)) return false;
+            const docRef = doc(db, `dice/${id}`);
+            try {
+                const docSnap = await getDoc(docRef);
+                return docSnap.exists();
+            } catch (e) {
+                console.error("Gagal memeriksa status ID di Firebase:", e);
+                return false; 
+            }
+        };
+
         // --- STATE MANAGEMENT DAN RENDER UTAMA ---
 
         const setState = (newState) => {
@@ -420,21 +432,20 @@
             if (isUnique) {
                 await initializeDiceDocument(id, true);
                 saveCustomId(id);
-                appState.customId = id;
+                // Update state to re-render the settings panel immediately
+                setState({ customId: id, isSaving: false });
             } else {
                 showStatus(`Custom ID ${id} sudah digunakan. Pilih angka lain.`, true);
+                setState({ isSaving: false });
             }
-            setState({ isSaving: false });
         };
         
         // --- HANDLER SIMPAN PENGATURAN GLOBAL ---
 
-        const handleSaveAllSettings = async (andExit = false) => {
-            setState({ isSaving: true });
-            
+        // Helper function to read from DOM and save all settings
+        const _updateAndSaveAllSettings = () => {
             let errorFound = false;
             
-            // Ambil semua nilai dari DOM, gunakan optional chaining
             const newKeyword = document.getElementById('keyword-input')?.value.trim().toUpperCase();
             const customId = document.getElementById('custom-id-input')?.value.trim();
             const halluTitle = document.getElementById('hallucination-title-input')?.value.trim();
@@ -442,7 +453,6 @@
             const startListStr = document.getElementById('start-list-input')?.value;
             const endListStr = document.getElementById('end-list-input')?.value;
 
-            // 1. Validasi & Simpan semua data tanpa terikat mode aktif
             if (newKeyword && (newKeyword === halluTitle?.toUpperCase() || newKeyword === mrTitle?.toUpperCase())) {
                 showStatus("Keyword rahasia tidak boleh sama dengan judul trik!", true);
                 errorFound = true;
@@ -454,8 +464,10 @@
             if (customId && !/^\d{4}$/.test(customId)) {
                 showStatus("Custom ID harus 4 digit angka!", true);
                 errorFound = true;
-            } else if(customId) {
-                // ID disimpan saat tombol "Buat ID" diklik, tidak di sini
+            } else if (customId) {
+                // Simpan ID yang diketik pengguna jika formatnya valid
+                saveCustomId(customId);
+                appState.customId = customId;
             }
 
             if (halluTitle) {
@@ -472,14 +484,20 @@
                 saveItemsList(START_ITEMS_LIST_KEY, startArray);
                 appState.startItemsList = startArray;
             }
-             if (endListStr !== undefined) {
+            if (endListStr !== undefined) {
                 const endArray = endListStr.split('\n').map(item => item.trim()).filter(Boolean);
                 saveItemsList(END_ITEMS_LIST_KEY, endArray);
                 appState.endItemsList = endArray;
             }
+            
+            return !errorFound; // Return true if no error
+        };
 
-            // Finalisasi
-            if (!errorFound) {
+        const handleSaveAllSettings = async (andExit = false) => {
+            setState({ isSaving: true });
+            const success = _updateAndSaveAllSettings();
+            
+            if (success) {
                 await initApp(appState.appMode);
                 if (andExit) {
                     handleBackToList();
@@ -612,7 +630,7 @@
                                 <p class="text-sm font-light text-gray-400 mb-2">Custom ID Firebase (4 Digit):</p>
                                 <div class="flex space-x-2 items-center">
                                     <input id="custom-id-input" type="text" value="${customId}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);" maxlength="4" placeholder="1234" class="w-24 bg-gray-700 text-white p-3 rounded-lg font-mono outline-none focus:ring-2 focus:ring-red-500">
-                                    <button onclick="window.handleCheckAndCreateId()" class="p-3 bg-indigo-600 rounded-lg hover:bg-indigo-700 flex items-center space-x-2">
+                                    <button onclick="window.handleCheckAndCreateId()" ${isSaving ? 'disabled' : ''} class="p-3 bg-indigo-600 rounded-lg hover:bg-indigo-700 flex items-center space-x-2">
                                         ${isSaving ? Icons.Loader2.replace('class="', 'class="animate-spin w-5 h-5 ') : Icons.Check} <span>Buat ID</span>
                                     </button>
                                 </div>
@@ -624,7 +642,7 @@
                             <div class="flex flex-wrap gap-2 mb-4 border-b border-gray-700 pb-4">
                                 ${['Hallucination', 'MindReading', 'Normal'].map(mode => `
                                     <label class="flex items-center text-white cursor-pointer p-2 bg-gray-700 rounded-lg transition hover:bg-gray-600 ${appMode === mode ? 'ring-2 ring-red-500' : ''}">
-                                        <input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} ${mode === 'MindReading' && customId.length !== 4 ? 'disabled' : ''} onchange="window.handleModeChange(this.value)" class="mr-2">
+                                        <input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="window.handleModeChange(this.value)" class="mr-2">
                                         <span>${mode}</span>
                                         ${mode === 'MindReading' && customId.length !== 4 ? `<span class="text-xs text-yellow-400 ml-2">(Perlu ID)</span>` : ''}
                                     </label>
@@ -644,14 +662,44 @@
             `;
         };
 
-        const handleModeChange = (newMode) => {
-            if (newMode === 'MindReading' && appState.customId.length !== 4) {
-                showStatus("Mind Reading membutuhkan Custom ID 4 digit. Harap atur dan buat ID terlebih dahulu.", true);
-                return; 
+        const handleModeChange = async (newMode) => {
+            // Simpan semua perubahan yang tertunda terlebih dahulu, termasuk ID yang diketik
+            const settingsSaved = _updateAndSaveAllSettings();
+            if(!settingsSaved){
+                renderApp(); // Render ulang untuk mengembalikan pilihan jika penyimpanan gagal
+                return;
             }
-            saveAppMode(newMode);
-            initApp(newMode);
-            showStatus(`Mode diubah ke: ${newMode}`, false);
+
+            if (newMode === 'MindReading') {
+                const idToCheck = appState.customId;
+
+                if (idToCheck.length !== 4) {
+                    showStatus("Mind Reading membutuhkan Custom ID 4 digit. Harap atur terlebih dahulu.", true);
+                    renderApp(); 
+                    return;
+                }
+
+                setState({ isSaving: true }); // Tampilkan indikator loading/penyimpanan
+                const isActive = await isIdActiveOnFirebase(idToCheck);
+                setState({ isSaving: false });
+
+                if (isActive) {
+                    // ID valid dan aktif di Firebase, lanjutkan
+                    saveAppMode(newMode);
+                    await initApp(newMode);
+                    showStatus(`Mode diubah ke: ${newMode}`, false);
+                } else {
+                    // ID sudah diketik tetapi tidak ada di Firebase
+                    showStatus("ID sudah diketik tapi belum terdaftar di server. Silakan tekan 'Buat ID'.", true);
+                    renderApp(); // Render ulang untuk mengembalikan pilihan radio button
+                    return;
+                }
+            } else {
+                // Untuk mode lain (Normal, Hallucination), tidak perlu pemeriksaan Firebase
+                saveAppMode(newMode);
+                await initApp(newMode);
+                showStatus(`Mode diubah ke: ${newMode}`, false);
+            }
         };
         
         // --- FIREBASE LISTENER ---
