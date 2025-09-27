@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimalist Magic Notes</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PWA & Mobile App Tags -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Magic Notes">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Menggunakan font Inter secara global */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            /* Memastikan body memenuhi tinggi layar */
+            height: 100vh;
+            overflow: hidden; /* Mencegah scroll di level body */
+        }
+        /* Style untuk textarea editor agar scrollable dan mengisi ruang */
+        #content-editor {
+            flex-grow: 1;
+            overflow-y: auto;
+            min-height: 50vh;  
+        }
+        /* Utility untuk line-clamp */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+        }
+        /* Custom scrollbar untuk tampilan dark/minimalis */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e5e7eb; /* gray-200 */
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1f2937; /* gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #9ca3af; /* gray-400 */
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+             background: #4b5563; /* gray-600 */
+        }
+        /* Aplikasi menggunakan dark mode pada panel rahasia */
+        .secret-panel-container ::-webkit-scrollbar-track {
+            background: #0f172a; /* dark blue-900 */
+        }
+        /* NEW: Filter untuk mengubah ikon hitam menjadi putih pada dark mode */
+        .dark .dark-mode-icon {
+            filter: invert(1);
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 h-screen">
+
+    <div id="app" class="h-full w-full">
+        <!-- Konten aplikasi akan dirender di sini -->
+        <div class="flex items-center justify-center h-full">
+            <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-3 text-lg text-gray-600 dark:text-gray-400">Memuat Aplikasi (Offline/Firebase)...</span>
+        </div>
+    </div>
+
+    <!-- Firebase CDN Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Atur level log Firestore
+        setLogLevel('Debug');
+
+        // --- DEFINISI IKON DARI ICONS8 ---
+        const Icons = {
+            Plus: `<img src="https://img.icons8.com/ios-glyphs/30/plus-math.png" alt="plus" class="w-6 h-6 dark-mode-icon"/>`,
+            Save: `<img src="https://img.icons8.com/material-outlined/30/save.png" alt="save" class="w-6 h-6 dark-mode-icon"/>`,
+            Trash2: `<img src="https://img.icons8.com/ios-glyphs/30/trash.png" alt="delete" class="w-6 h-6"/>`,
+            ArrowLeft: `<img src="https://img.icons8.com/ios-glyphs/30/left.png" alt="back" class="w-6 h-6 dark-mode-icon"/>`,
+            Loader2: `<img src="https://img.icons8.com/ios-glyphs/30/loading-circle.png" alt="loading" class="w-6 h-6 dark-mode-icon animate-spin"/>`,
+            Lock: `<img src="https://img.icons8.com/ios-glyphs/30/lock.png" alt="lock" class="w-6 h-6"/>`,
+            Unlock: `<img src="https://img.icons8.com/ios-glyphs/30/unlock.png" alt="unlock" class="w-6 h-6"/>`,
+            Settings: `<img src="https://img.icons8.com/ios-glyphs/30/settings.png" alt="settings" class="w-6 h-6"/>`,
+            Zap: `<img src="https://img.icons8.com/ios-glyphs/30/flash-on.png" alt="zap" class="w-6 h-6"/>`,
+            Edit: `<img src="https://img.icons8.com/ios-glyphs/30/edit.png" alt="edit" class="w-6 h-6"/>`,
+            Hash: `<img src="https://img.icons8.com/ios-glyphs/30/hashtag.png" alt="hash" class="w-6 h-6"/>`,
+            Check: `<img src="https://img.icons8.com/ios-glyphs/30/checked-2.png" alt="check" class="w-6 h-6"/>`
+        };
+
+
+        // --- KONFIGURASI FIREBASE ---
+        const USER_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyC6iE-MTA8trrP418d_V8bDt4bC9Arrrvk",
+            authDomain: "nexus-note.firebaseapp.com",
+            projectId: "nexus-note",
+            storageBucket: "nexus-note.firebasestorage.app",
+            messagingSenderId: "56226763793",
+            appId: "1:56226763793:web:80f8f1230aefbc04bf4db0"
+        };
+        
+        // Menggunakan global environment variables jika tersedia, jika tidak, gunakan hardcoded
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify(USER_FIREBASE_CONFIG);
+        const firebaseConfig = JSON.parse(firebaseConfigStr);
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        let db;
+        let auth;
+        let unsubscribeListener = null;
+
+        // --- KONSTANTA GLOBAL OFFLINE ---
+        const STORAGE_KEY = 'minimalist_offline_notes';
+        const SECRET_KEYWORD_KEY = 'app_secret_keyword'; 
+        const APP_MODE_KEY = 'app_current_mode';
+        const START_ITEMS_LIST_KEY = 'app_start_items';
+        const END_ITEMS_LIST_KEY = 'app_end_items';
+        const CUSTOM_ID_KEY = 'app_custom_id'; 
+        
+        // --- NEW KEYS FOR CUSTOM TITLES ---
+        const HALLUCINATION_TITLE_KEY = 'app_hallucination_title';
+        const MIND_READING_TITLE_KEY = 'app_mind_reading_title';
+
+        // --- DEFINISI DAFTAR ITEM DEFAULT (Sesuai Permintaan: 20 dan 19 item unik) ---
+        const DEFAULT_START_ITEMS_20 = [
+            "Koin", "Tisu", "Kunci", "Pensil", "Penghapus", 
+            "Jarum", "Gelas", "Batu", "Klip", "Benang", 
+            "Cap", "Topi", "Botol", "Daun", "Tanah", 
+            "Sisir", "Sekrup", "Kartu", "Obeng", "Kancing"
+        ];
+        
+        const DEFAULT_END_ITEMS_19 = [
+            "Gelang", "Magnet", "Peniti", "Sandal", "Lampu",
+            "Kabel", "Payung", "Buku", "Pulpen", "Meja",
+            "Kursi", "Pintu", "Jendela", "Sepatu", "Rokok",
+            "Korek", "Kertas", "Amplop", "Gunting"
+        ];
+        
+        const getInitialDefaultList = (key) => {
+             if (key === START_ITEMS_LIST_KEY) return DEFAULT_START_ITEMS_20;
+             if (key === END_ITEMS_LIST_KEY) return DEFAULT_END_ITEMS_19;
+             return [];
+        };
+
+        // --- NEW/UPDATED UTILITY FUNCTIONS FOR STORAGE ---
+        const getHallucinationTitle = () => localStorage.getItem(HALLUCINATION_TITLE_KEY) || 'List Benda Acak';
+        const saveHallucinationTitle = (title) => localStorage.setItem(HALLUCINATION_TITLE_KEY, title.trim());
+        const getMindReadingTitle = () => localStorage.getItem(MIND_READING_TITLE_KEY) || 'Clipboard Cepat';
+        const saveMindReadingTitle = (title) => localStorage.setItem(MIND_READING_TITLE_KEY, title.trim());
+
+        // --- GLOBAL STATE ---
+        let appState = {
+            notes: [],
+            activeNoteId: null,
+            title: '',
+            content: '',
+            isLoading: true,
+            isSaving: false,
+            secretKeyword: 'KUNCI',
+            appMode: 'Hallucination', // 'Hallucination', 'MindReading', 'Normal'
+            startItemsList: getInitialDefaultList(START_ITEMS_LIST_KEY),
+            endItemsList: getInitialDefaultList(END_ITEMS_LIST_KEY),
+            customId: '',
+            hallucinationNoteTitle: getHallucinationTitle(),
+            mindReadingNoteTitle: getMindReadingTitle(),
+            rememberedItem: null,
+            isListening: false,
+            statusMessage: null, 
+            longPressTimeout: null,
+            originalMindReadingTitle: null, // NEW: for temporary title change
+        };
+
+        // --- FUNGSI UTILITY LOCAL STORAGE & UMUM ---
+
+        const getLocalNotes = () => {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                console.error("Gagal memuat catatan dari Local Storage:", e);
+                return [];
+            }
+        };
+
+        const saveLocalNotes = (notes) => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+            } catch (e) {
+                console.error("Gagal menyimpan catatan ke Local Storage:", e);
+            }
+        };
+
+        const getSecretKeyword = () => localStorage.getItem(SECRET_KEYWORD_KEY) || 'KUNCI';
+        const saveSecretKeyword = (keyword) => localStorage.setItem(SECRET_KEYWORD_KEY, keyword.toUpperCase().trim());
+
+        const getCustomId = () => localStorage.getItem(CUSTOM_ID_KEY) || '';
+        const saveCustomId = (id) => localStorage.setItem(CUSTOM_ID_KEY, id.trim());
+
+        const getAppMode = () => localStorage.getItem(APP_MODE_KEY) || 'Hallucination';
+        const saveAppMode = (mode) => localStorage.setItem(APP_MODE_KEY, mode);
+
+        const getItemsList = (key) => {
+            try {
+                const stored = localStorage.getItem(key);
+                const parsed = stored ? JSON.parse(stored) : null;
+                const defaultList = getInitialDefaultList(key);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                return defaultList;
+            } catch (e) {
+                console.error(`Gagal memuat daftar dari ${key}:`, e);
+                return getInitialDefaultList(key);
+            }
+        };
+
+        const saveItemsList = (key, list) => localStorage.setItem(key, JSON.stringify(list));
+
+        const sortNotes = (notesArray) => [...notesArray].sort((a, b) => b.updatedAt - a.updatedAt);
+
+        const isMatchingSecretKeyword = (title, keyword) => {
+            if (!title || !keyword) return false;
+            return title.toUpperCase().trim() === keyword.toUpperCase().trim();
+        };
+        
+        const isTrickNote = (title, halluTitle, mrTitle) => {
+            return title === halluTitle || title === mrTitle;
+        };
+
+        const shuffleArray = (array) => {
+            let newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        };
+
+        const generateRandomListContent = (itemsList, isTriggered = false, isMindReading = false) => {
+            if (!itemsList || itemsList.length === 0) return "ERROR: Daftar item tidak boleh kosong.";
+            let listToDisplay;
+            const N = itemsList.length;
+            if (isTriggered && !isMindReading) {
+                if (N <= 1) return "ERROR: Daftar harus berisi setidaknya 2 item untuk trik N-1.";
+                const shuffled = shuffleArray(itemsList);
+                listToDisplay = shuffled.slice(0, N - 1);
+            } else {
+                listToDisplay = [...itemsList];
+            }
+            if (isMindReading) {
+                return listToDisplay.map((item, index) => `${index + 1}. ${item}`).join('\n');
+            } else {
+                return listToDisplay.join('\n');
+            }
+        };
+
+        const initializeDiceDocument = async (id) => {
+            if (!db || id.length !== 4) return;
+            const docRef = doc(db, `dice/${id}`);
+            try {
+                await setDoc(docRef, { currentDiceNumber: 1, initializedAt: Date.now() }, { merge: false });
+                console.log(`Firestore document 'dice/${id}' created successfully.`);
+            } catch (e) {
+                console.error("Gagal membuat dokumen Firestore dice:", e);
+            }
+        };
+
+        const isCustomIdUnique = async (id) => {
+            if (!db || id.length !== 4) return false;
+            const docRef = doc(db, `dice/${id}`);
+            try {
+                const docSnap = await getDoc(docRef);
+                return !docSnap.exists();
+            } catch (e) {
+                console.error("Gagal memeriksa keunikan Custom ID:", e);
+                return false; 
+            }
+        };
+
+        // --- STATE MANAGEMENT DAN RENDER UTAMA ---
+
+        const setState = (newState) => {
+            Object.assign(appState, newState);
+            renderApp();
+        };
+
+        const showStatus = (message, isError = false) => {
+            setState({ statusMessage: { message, isError } });
+            setTimeout(() => setState({ statusMessage: null }), 4000); 
+        };
+        
+        const handleLiveInput = (key, value) => {
+            appState[key] = value; 
+            if (key === 'title') {
+                const trimmedTitle = value.trim().toUpperCase();
+                if (trimmedTitle === appState.secretKeyword) {
+                    checkSecretTitleTrigger(trimmedTitle);
+                    return; 
+                }
+            }
+        };
+
+        // --- LOGIC TRIGGER PENGATURAN RAHASIA ---
+        const checkSecretTitleTrigger = (secretTitle) => {
+            const existingSecretNote = appState.notes.find(n => isMatchingSecretKeyword(n.title, secretTitle));
+            const currentContentInEditor = document.getElementById('content-editor')?.value || appState.content;
+            if (existingSecretNote) {
+                setState({ activeNoteId: existingSecretNote.id, title: existingSecretNote.title, content: existingSecretNote.content, rememberedItem: null });
+            } else {
+                const newNoteId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
+                const timestamp = Date.now();
+                const newSecretNote = { id: newNoteId, title: secretTitle, content: currentContentInEditor, createdAt: timestamp, updatedAt: timestamp };
+                let updatedNotes = [newSecretNote, ...appState.notes];
+                updatedNotes = updatedNotes.filter(note => note.id === newNoteId || !isMatchingSecretKeyword(note.title, secretTitle));
+                if (appState.activeNoteId !== 'new' && appState.activeNoteId !== null) {
+                    updatedNotes = updatedNotes.filter(note => note.id !== appState.activeNoteId);
+                }
+                saveLocalNotes(updatedNotes);
+                setState({ notes: updatedNotes, activeNoteId: newNoteId, title: newSecretNote.title, content: newSecretNote.content, rememberedItem: null });
+            }
+        };
+
+        // --- HANDLER UTAMA ---
+
+        const handleSaveSecretKeyword = (newKeyword) => {
+            setState({ secretKeyword: newKeyword });
+            saveSecretKeyword(newKeyword);
+        };
+        
+        const handleSaveStartItemsList = (newList) => {
+            setState({ startItemsList: newList });
+            saveItemsList(START_ITEMS_LIST_KEY, newList);
+            setupMindReadingListener(); 
+        };
+
+        const handleSaveEndItemsList = (newList) => {
+            setState({ endItemsList: newList });
+            saveItemsList(END_ITEMS_LIST_KEY, newList);
+        };
+        
+        const handleOpenNote = (note) => {
+            setState({ activeNoteId: note.id, title: note.title, content: note.content, rememberedItem: null });
+        };
+
+        const handleBackToList = () => {
+            const isSecretNote = appState.activeNoteId && isMatchingSecretKeyword(appState.title, appState.secretKeyword);
+            const isHallucinationNote = appState.appMode === 'Hallucination' && appState.title === appState.hallucinationNoteTitle;
+            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
+            let updatedNotes = appState.notes;
+            if (!isSecretNote && (isHallucinationNote || isMindReadingNote)) {
+                const trickNoteIndex = updatedNotes.findIndex(n => n.id === appState.activeNoteId);
+                if (trickNoteIndex !== -1) {
+                    const isMR = isMindReadingNote;
+                    const listToUse = isMR ? appState.startItemsList : appState.startItemsList; 
+                    const initialContent = generateRandomListContent(listToUse, false, isMR);
+                    updatedNotes[trickNoteIndex] = { ...updatedNotes[trickNoteIndex], content: initialContent, updatedAt: Date.now() };
+                    showStatus(`Perubahan sementara pada catatan trik dibatalkan.`, false);
+                }
+            }
+            const finalNotes = sortNotes(updatedNotes);
+            saveLocalNotes(finalNotes);
+            setState({ activeNoteId: null, title: '', content: '', notes: finalNotes, rememberedItem: null });
+        };
+
+        const handleNewNote = () => {
+            setState({ activeNoteId: 'new', title: '', content: '', rememberedItem: null });
+        };
+
+        const handleSaveNote = (internalCall = false) => {
+            if (appState.isSaving && !internalCall) return;
+            const editorTitle = document.getElementById('title-editor');
+            const editorContent = document.getElementById('content-editor');
+            if (editorTitle) appState.title = editorTitle.value;
+            if (editorContent) appState.content = editorContent.value;
+            const noteTitle = appState.title.trim() || 'Catatan Tanpa Judul';
+            const noteContent = appState.content; 
+            if (!noteTitle && !noteContent) {
+                const updatedNotes = appState.notes.filter(note => note.id !== appState.activeNoteId && note.id !== 'new');
+                saveLocalNotes(updatedNotes);
+                setState({ notes: updatedNotes, isSaving: false });
+                handleBackToList();
+                return;
+            }
+            setState({ isSaving: true });
+            const timestamp = Date.now();
+            let updatedNotes;
+            let newNoteId = appState.activeNoteId;
+            const isSecretNoteBeingSaved = isMatchingSecretKeyword(noteTitle, appState.secretKeyword);
+            let isNew = false;
+            if (appState.activeNoteId && appState.activeNoteId !== 'new') {
+                updatedNotes = appState.notes.map(note => note.id === appState.activeNoteId ? { ...note, title: noteTitle, content: noteContent, updatedAt: timestamp } : note);
+            } else {
+                isNew = true;
+                newNoteId = timestamp.toString() + Math.random().toString(36).substring(2, 9);
+                const newNote = { id: newNoteId, title: noteTitle, content: noteContent, createdAt: timestamp, updatedAt: timestamp };
+                updatedNotes = [newNote, ...appState.notes.filter(n => n.id !== 'new')];
+                if (isSecretNoteBeingSaved) {
+                    updatedNotes = updatedNotes.filter(note => note.id === newNoteId || !isMatchingSecretKeyword(note.title, appState.secretKeyword));
+                }
+            }
+            if (isSecretNoteBeingSaved && isNew) {
+                setState({ activeNoteId: newNoteId });
+            }
+            const finalNotes = sortNotes(updatedNotes);
+            saveLocalNotes(finalNotes);
+            setState({ notes: finalNotes, isSaving: false });
+            if (!internalCall && !isSecretNoteBeingSaved) { 
+                handleBackToList(); 
+            }
+        };
+
+        const handleDeleteNote = () => {
+            if (!appState.activeNoteId || appState.activeNoteId === 'new') return;
+            const updatedNotes = appState.notes.filter(note => note.id !== appState.activeNoteId);
+            saveLocalNotes(updatedNotes);
+            setState({ notes: updatedNotes });
+            handleBackToList();
+        };
+        
+        const handleCreateOrCheckId = async () => {
+            const idInput = document.getElementById('custom-id-input');
+            if (!idInput) return;
+            const trimmedId = idInput.value.trim();
+            if (!/^\d{4}$/.test(trimmedId)) {
+                showStatus("Custom ID harus berupa 4 digit angka!", true);
+                return;
+            }
+            setState({ isSaving: true });
+            const isUnique = await isCustomIdUnique(trimmedId);
+            setState({ isSaving: false });
+            if (isUnique) {
+                await initializeDiceDocument(trimmedId);
+                saveCustomId(trimmedId);
+                appState.customId = trimmedId;
+                showStatus(`ID "${trimmedId}" berhasil dibuat & tersedia!`, false);
+                renderApp();
+            } else {
+                showStatus(`ID "${trimmedId}" sudah digunakan. Coba ID lain.`, true);
+            }
+        };
+
+        const handleHallucinationTrigger = (e) => {
+            document.getElementById('content-editor')?.blur();
+            const isHallucinationNoteActive = appState.appMode === 'Hallucination' && appState.title === appState.hallucinationNoteTitle;
+            if (!isHallucinationNoteActive) return;
+            const startItems = appState.startItemsList; 
+            const endItems = appState.endItemsList;   
+            const expectedInitialContent = generateRandomListContent(startItems, false, false);
+            if (appState.content.trim() === expectedInitialContent.trim()) {
+                if (endItems.length < 1) {
+                     showStatus("Daftar Akhir tidak boleh kosong.", true);
+                     return;
+                }
+                const newContent = generateRandomListContent(endItems, false, false); 
+                appState.content = newContent;
+                renderApp(); 
+            } else {
+                console.log("Trik Halusinasi (Pergantian List) sudah terjadi atau list sudah diedit. Tap diabaikan.");
+            }
+        };
+
+        // --- UPDATED Logic Mind Reading: Tap and Hold ---
+        const longPressDuration = 500;
+
+        const triggerMindReading = () => {
+            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
+            if (!isMindReadingNote || !appState.longPressTimeout) return;
+            document.getElementById('content-editor')?.blur();
+            const newTitle = appState.rememberedItem || "Menunggu Item...";
+            setState({ title: newTitle }); // Perubahan hanya di state, tidak disimpan
+        };
+
+        const startLongPress = (e) => {
+            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
+            if (!isMindReadingNote) return;
+            e.preventDefault(); 
+            cancelLongPress(); // Hapus timeout sebelumnya jika ada
+            appState.originalMindReadingTitle = appState.title;
+            appState.longPressTimeout = setTimeout(triggerMindReading, longPressDuration);
+        };
+
+        const cancelLongPress = () => {
+            clearTimeout(appState.longPressTimeout);
+            appState.longPressTimeout = null;
+            if (appState.originalMindReadingTitle !== null) {
+                setState({ title: appState.originalMindReadingTitle, originalMindReadingTitle: null });
+            }
+        };
+        
+        // --- HANDLER SIMPAN GLOBAL BARU ---
+        const handleSaveAllSettings = async () => {
+            setState({ isSaving: true });
+            const newKeywordInput = document.getElementById('keyword-input').value;
+            const customIdInput = document.getElementById('custom-id-input').value;
+            const halluTitleInput = document.getElementById('hallucination-title-input')?.value || appState.hallucinationNoteTitle;
+            const mrTitleInput = document.getElementById('mindreading-title-input')?.value || appState.mindReadingNoteTitle;
+            const startListInput = document.getElementById('start-list-input')?.value || appState.startItemsList.join('\n');
+            const endListInput = document.getElementById('end-list-input')?.value || appState.endItemsList.join('\n');
+            let errorFound = false;
+            const trimmedKeyword = newKeywordInput.trim().toUpperCase();
+            if (trimmedKeyword && trimmedKeyword !== appState.secretKeyword.toUpperCase()) {
+                if (trimmedKeyword === halluTitleInput.toUpperCase() || trimmedKeyword === mrTitleInput.toUpperCase()) {
+                    showStatus("Keyword rahasia tidak boleh sama dengan judul trik!", true);
+                    errorFound = true;
+                } else {
+                    handleSaveSecretKeyword(trimmedKeyword);
+                }
+            }
+            const trimmedId = customIdInput.trim();
+            if (trimmedId && trimmedId !== appState.customId) {
+                if (!/^\d{4}$/.test(trimmedId)) {
+                    showStatus("Custom ID harus 4 digit angka! Gunakan tombol 'Buat ID' untuk verifikasi.", true);
+                    errorFound = true;
+                } else {
+                    const isUnique = await isCustomIdUnique(trimmedId);
+                    if (!isUnique) {
+                        showStatus(`Custom ID ${trimmedId} sudah digunakan. Pilih ID lain.`, true);
+                        errorFound = true;
+                    } else {
+                        saveCustomId(trimmedId);
+                        appState.customId = trimmedId;
+                        await initializeDiceDocument(trimmedId);
+                    }
+                }
+            } else if (!trimmedId && appState.appMode === 'MindReading') {
+                showStatus("Mode Mind Reading membutuhkan Custom ID 4 digit.", true);
+                errorFound = true;
+            }
+            if (!errorFound) {
+                if (appState.appMode === 'Hallucination' && halluTitleInput.trim()) {
+                    saveHallucinationTitle(halluTitleInput);
+                    appState.hallucinationNoteTitle = halluTitleInput.trim();
+                }
+                if (appState.appMode === 'MindReading' && mrTitleInput.trim()) {
+                    saveMindReadingTitle(mrTitleInput);
+                    appState.mindReadingNoteTitle = mrTitleInput.trim();
+                }
+            }
+            if (!errorFound && (appState.appMode === 'Hallucination' || appState.appMode === 'MindReading')) {
+                const startArray = startListInput.split('\n').map(item => item.trim()).filter(Boolean);
+                const endArray = endListInput.split('\n').map(item => item.trim()).filter(Boolean);
+                if (appState.appMode === 'Hallucination' && (startArray.length < 2 || endArray.length < 1)) {
+                     showStatus("Hallucination: Daftar Awal min 2 item & Daftar Akhir min 1 item.", true);
+                     errorFound = true;
+                } else if (appState.appMode === 'MindReading' && (startArray.length > 20 || startArray.length === 0)) {
+                     showStatus("Mind Reading: Daftar Awal harus 1-20 item.", true);
+                     errorFound = true;
+                } else {
+                    handleSaveStartItemsList(startArray);
+                    if (appState.appMode === 'Hallucination') handleSaveEndItemsList(endArray);
+                }
+            }
+            if (errorFound) {
+                setState({ isSaving: false });
+            } else {
+                const secretNote = appState.notes.find(n => n.id === appState.activeNoteId);
+                if (secretNote && isMatchingSecretKeyword(secretNote.title, trimmedKeyword)) {
+                    secretNote.title = trimmedKeyword;
+                    handleSaveNote(true);
+                }
+                initApp(appState.appMode);
+                showStatus("Semua pengaturan rahasia berhasil disimpan!", false);
+                setState({ isSaving: false });
+            }
+        };
+
+        // --- RENDER FUNCTIONS ---
+
+        const renderNoteList = () => {
+            const displayNotes = appState.notes.filter(note => !isMatchingSecretKeyword(note.title, appState.secretKeyword));
+            const notesHtml = displayNotes.length === 0 ? `<p class="text-gray-500 text-center mt-10">Belum ada catatan. Tekan tombol '+' untuk membuat satu.</p>` 
+            : displayNotes.map((note) => `
+                <div id="note-${note.id}" data-id="${note.id}" class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md cursor-pointer transition duration-200 border-l-4 border-indigo-400 note-item"
+                    onclick="handleOpenNote({ id: '${note.id}', title: \`${note.title.replace(/`/g, '\\`')}\`, content: \`${note.content.replace(/`/g, '\\`')}\`, updatedAt: ${note.updatedAt} })">
+                    <h2 class="text-lg font-semibold truncate text-black dark:text-white inline-block">${note.title || 'Catatan Tanpa Judul'}</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">${note.content ? (note.content.length > 150 ? note.content.substring(0, 150) + '...' : note.content || '...') : '...'}</p>
+                    <span class="text-xs text-gray-400 dark:text-gray-500 mt-2 block">
+                        Diperbarui: ${new Date(note.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                    </span>
+                </div>`).join('');
+            return `
+                <div class="flex flex-col h-full bg-white dark:bg-gray-900 p-4 relative font-sans">
+                    <header class="mb-6"><h1 class="text-3xl font-bold text-black dark:text-white">Daftar Catatan</h1></header>
+                    <div class="flex-grow overflow-y-auto space-y-3 pb-20">${notesHtml}</div>
+                    <button onclick="handleNewNote()" class="absolute bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition duration-300 transform hover:scale-105 active:scale-95" title="Catatan Baru">${Icons.Plus}</button>
+                </div>`;
+        };
+
+        const renderNoteEditor = () => {
+            const isHallucinationNote = appState.appMode === 'Hallucination' && appState.title === appState.hallucinationNoteTitle;
+            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
+            const isTrickNoteActive = isHallucinationNote || isMindReadingNote; 
+            const deleteButton = (appState.activeNoteId && appState.activeNoteId !== 'new') ? `<button onclick="handleDeleteNote()" class="p-2 text-red-500 transition duration-150 rounded-full hover:bg-red-100 dark:hover:bg-red-900" title="Hapus Catatan">${Icons.Trash2}</button>` : '';
+            const saveButtonClass = appState.isSaving ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-500 text-white hover:bg-indigo-600 active:bg-indigo-700';
+            const textareaClass = `flex-grow p-2 text-gray-800 dark:text-gray-200 dark:bg-gray-800 resize-none outline-none leading-relaxed text-lg ${isHallucinationNote ? 'cursor-pointer transition duration-150 active:bg-yellow-50 dark:active:bg-yellow-900' : ''} ${isMindReadingNote ? 'cursor-alias' : ''}`;
+            let extraAttributes = '';
+            if (isHallucinationNote) extraAttributes += ` onclick="handleHallucinationTrigger()"`;
+            if (isMindReadingNote) extraAttributes += ` onmousedown="startLongPress(event)" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event)" ontouchend="cancelLongPress()" ontouchcancel="cancelLongPress()"`;
+            return `
+                <div class="flex flex-col h-full bg-white dark:bg-gray-800 p-4 font-sans">
+                    <header class="flex justify-between items-center mb-4">
+                        <button onclick="handleBackToList()" class="p-2 text-gray-700 dark:text-gray-300 transition duration-150 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" title="Kembali ke Daftar">${Icons.ArrowLeft}</button>
+                        <div class="flex space-x-2">
+                            ${deleteButton}
+                            <button onclick="handleSaveNote(false)" ${appState.isSaving ? 'disabled' : ''} class="p-2 rounded-full transition duration-150 shadow-md ${saveButtonClass}" title="Simpan Catatan">${appState.isSaving ? Icons.Loader2 : Icons.Save}</button>
+                        </div>
+                    </header>
+                    <input id="title-editor" type="text" value="${appState.title}" oninput="handleLiveInput('title', this.value)" placeholder="Judul Catatan" class="text-2xl font-semibold p-2 border-b-2 bg-transparent text-black dark:text-white border-gray-100 dark:border-gray-700 mb-4 focus:border-indigo-500 outline-none" ${isTrickNoteActive ? 'readonly' : ''} />
+                    <textarea id="content-editor" oninput="handleLiveInput('content', this.value)" placeholder="Isi catatan Anda di sini..." class="${textareaClass}" ${extraAttributes}>${appState.content}</textarea>
+                </div>`;
+        };
+
+        const renderSecretSettingsPanel = () => {
+            const { secretKeyword, customId, statusMessage, appMode, startItemsList, endItemsList, isSaving } = appState;
+            const startListInput = startItemsList.join('\n');
+            const endListInput = endItemsList.join('\n');
+            const ItemListForm = (type, input) => {
+                const isStartList = type === 'start', label = isStartList ? 'Awal' : 'Akhir', inputId = `${type}-list-input`;
+                const itemCount = input.split('\n').filter(Boolean).length;
+                let maxConstraint = isStartList ? 20 : 19, constraintText = `(Max: ${maxConstraint} item)`, infoText = 'Pisahkan item dengan baris baru.';
+                if (appMode === 'Hallucination') { maxConstraint = Infinity; constraintText = `(Disarankan Min 2)`; infoText = 'Daftar Akhir akan tampil saat diklik. Pastikan item Daftar Awal > Akhir.'; }
+                if (type === 'end' && appMode !== 'Hallucination') return '';
+                return `<div class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col mt-4">
+                        <h3 class="text-md font-bold text-red-300 mb-2">Daftar Item ${label} ${itemCount > maxConstraint && maxConstraint !== Infinity ? `(> ${maxConstraint})` : constraintText}</h3>
+                        <p class="text-xs font-light text-gray-400 mb-2">${infoText} <span class="font-bold block mt-1 text-red-400">Total: ${itemCount}</span></p>
+                        <textarea id="${inputId}" rows="8" class="bg-gray-800 text-gray-200 p-3 rounded-lg resize-none outline-none focus:ring-2 focus:ring-red-500 font-mono text-sm mb-3">${input}</textarea></div>`;
+            };
+            const statusHtml = statusMessage ? `<div class="p-3 rounded-lg font-semibold ${statusMessage.isError ? 'bg-red-700' : 'bg-green-600'} text-white">${statusMessage.message}</div>` : '';
+            const TitleEditor = (mode, currentTitle) => `<div class="mt-4"><p class="text-sm font-light text-gray-400 mb-2">Judul Trik ${mode}:</p><div class="flex"><input id="${mode.toLowerCase()}-title-input" type="text" value="${currentTitle}" class="flex-grow bg-gray-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-red-500"/></div></div>`;
+            const saveButtonClass = isSaving ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600';
+            return `<div class="flex flex-col h-full bg-gray-900 text-white p-6 font-sans secret-panel-container">
+                    <header class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
+                        <button onclick="handleSaveAllSettings()" ${isSaving ? 'disabled' : ''} class="p-3 rounded-full transition shadow-md flex items-center ${saveButtonClass}" title="Simpan Semua"><span class="w-5 h-5">${isSaving ? Icons.Loader2 : Icons.Save}</span><span class="ml-2 font-semibold hidden sm:inline">Simpan</span></button>
+                        <h1 class="text-xl font-mono tracking-widest text-red-500 flex items-center"><span class="w-5 h-5">${Icons.Settings}</span><span class="ml-2">PENGATURAN</span></h1>
+                        <button onclick="handleBackToList()" class="p-3 rounded-full transition shadow-md bg-gray-700 text-red-400 hover:bg-red-500 hover:text-white" title="Keluar">${Icons.ArrowLeft}</button>
+                    </header>
+                    <div class="flex-grow overflow-y-auto space-y-8 pb-4">${statusHtml}
+                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl space-y-4">
+                            <h2 class="text-lg font-bold text-indigo-400 flex items-center"><span class="w-5 h-5">${Icons.Unlock}</span><span class="ml-2">Akses Rahasia</span></h2>
+                            <div><p class="text-sm font-light text-gray-400 mb-2">Kata Kunci Panel:</p><div class="flex"><input id="keyword-input" type="text" value="${secretKeyword}" class="flex-grow bg-gray-700 text-white p-3 rounded-lg font-mono uppercase outline-none focus:ring-2 focus:ring-red-500"/></div></div>
+                            <div><p class="text-sm font-light text-gray-400 mb-2">Custom ID Firebase (4 Digit):</p><div class="flex space-x-2 items-center"><input id="custom-id-input" type="text" value="${customId}" maxlength="4" placeholder="1234" class="w-24 bg-gray-700 p-3 rounded-lg font-mono outline-none focus:ring-2 focus:ring-red-500" oninput="this.value = this.value.replace(/[^0-9]/g, '')"/>
+                                <button onclick="handleCreateOrCheckId()" class="px-3 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700 flex items-center" title="Cek & Buat ID"><span class="w-5 h-5">${Icons.Check}</span><span class="ml-2 text-sm font-semibold">Buat ID</span></button>
+                                <div class="flex-grow text-sm text-gray-400 pl-2">Aktif: <span class="font-mono text-red-400 ml-1">${customId || "N/A"}</span></div></div></div>
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
+                            <h2 class="text-lg font-bold text-indigo-400 mb-3 flex items-center"><span class="w-5 h-5">${Icons.Zap}</span><span class="ml-2">Mode & Judul</span></h2>
+                            <div class="flex flex-wrap gap-4 mb-4 border-b border-gray-700 pb-4">${['Hallucination', 'MindReading', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-700 rounded-lg hover:bg-gray-600 ${appMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} ${mode === 'MindReading' && customId.length !== 4 ? 'disabled' : ''} onchange="handleModeChange(this.value)" class="mr-2 text-red-500 focus:ring-red-500"/><span class="font-semibold">${mode}</span>${mode === 'MindReading' && customId.length !== 4 ? `<span class="text-xs text-yellow-400 ml-2">(ID?)</span>` : ''}</label>`).join('')}</div>
+                            ${appMode === 'Hallucination' ? TitleEditor('Hallucination', appState.hallucinationNoteTitle) : ''}
+                            ${appMode === 'MindReading' ? TitleEditor('MindReading', appState.mindReadingNoteTitle) : ''}
+                        </div>
+                        ${appMode === 'Hallucination' || appMode === 'MindReading' ? `<div class="bg-gray-800 p-4 rounded-xl shadow-xl flex flex-col"><h2 class="text-lg font-bold text-indigo-400 mb-2 flex items-center"><span class="w-5 h-5">${Icons.Edit}</span><span class="ml-2">Kustomisasi Daftar</span></h2>${ItemListForm('start', startListInput)}${ItemListForm('end', endListInput)}</div>` : ''}
+                    </div></div>`;
+        };
+        
+        const handleModeChange = (newMode) => {
+            if (newMode === 'MindReading' && appState.customId.trim().length !== 4) {
+                showStatus("Mode Mind Reading perlu Custom ID 4 digit yang valid.", true);
+                return; 
+            }
+            initApp(newMode);
+            saveAppMode(newMode);
+            showStatus(`Mode diubah ke: ${newMode}`, false);
+            setupMindReadingListener(); 
+        };
+        
+        // --- FIREBASE SETUP & LISTENER ---
+
+        const setupMindReadingListener = () => {
+            if (unsubscribeListener) {
+                unsubscribeListener();
+                unsubscribeListener = null;
+                setState({ isListening: false, rememberedItem: null });
+            }
+            const { appMode, customId } = appState;
+            if (appMode !== 'MindReading' || !db || !/^\d{4}$/.test(customId)) return; 
+            const docRef = doc(db, `dice/${customId}`);
+            let isFirstValue = true;
+            setState({ isListening: true });
+            console.log(`Mind Reading: Mulai mendengarkan di: dice/${customId}`);
+            unsubscribeListener = onSnapshot(docRef, (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const diceNumber = docSnapshot.data()?.currentDiceNumber;
+                    if (diceNumber === undefined || typeof diceNumber !== 'number') return;
+                    if (isFirstValue) { isFirstValue = false; return; }
+                    const itemIndex = diceNumber - 1;
+                    const list = appState.startItemsList; 
+                    if (itemIndex >= 0 && itemIndex < list.length) {
+                        setState({ rememberedItem: list[itemIndex] });
+                        console.log(`Mind Reading: Item diingat (No ${diceNumber}): ${list[itemIndex]}`);
+                    } else {
+                        setState({ rememberedItem: `[Nomor ${diceNumber} di luar jangkauan]` });
+                    }
+                } else {
+                    console.warn(`Mind Reading: Dokumen dice/${customId} tidak ditemukan.`);
+                    setState({ rememberedItem: null });
+                }
+            }, (error) => {
+                console.error("Mind Reading Firestore Error:", error);
+                setState({ isListening: false, rememberedItem: null });
+            });
+        };
+
+        // --- INIT APP ---
+
+        const initApp = async (newMode = null) => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                else await signInAnonymously(auth);
+            } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
+
+            let currentMode = newMode || getAppMode();
+            const initialCustomId = getCustomId();
+            if (currentMode === 'MindReading' && initialCustomId.length !== 4) {
+                currentMode = 'Normal';
+                saveAppMode('Normal');
+            }
+            
+            const initialHallucinationTitle = getHallucinationTitle();
+            const initialMindReadingTitle = getMindReadingTitle();
+            const initialNotes = getLocalNotes();
+
+            Object.assign(appState, {
+                secretKeyword: getSecretKeyword(),
+                appMode: currentMode,
+                startItemsList: getItemsList(START_ITEMS_LIST_KEY),
+                endItemsList: getItemsList(END_ITEMS_LIST_KEY),
+                customId: initialCustomId,
+                hallucinationNoteTitle: initialHallucinationTitle,
+                mindReadingNoteTitle: initialMindReadingTitle,
+            });
+
+            const nonTrickOrSecretNotes = initialNotes.filter(n => !isMatchingSecretKeyword(n.title, appState.secretKeyword) && !isTrickNote(n.title, initialHallucinationTitle, initialMindReadingTitle));
+            let trickNote = null;
+            if (currentMode !== 'Normal') {
+                const expectedTrickTitle = currentMode === 'Hallucination' ? initialHallucinationTitle : initialMindReadingTitle;
+                const listToUse = appState.startItemsList;
+                const initialContent = generateRandomListContent(listToUse, false, currentMode === 'MindReading');
+                trickNote = initialNotes.find(n => n.title === expectedTrickTitle) || { id: 'default_trick_note', title: expectedTrickTitle, createdAt: Date.now() };
+                trickNote.content = initialContent;
+                trickNote.updatedAt = Date.now();
+            }
+            const existingSecretNote = initialNotes.find(n => isMatchingSecretKeyword(n.title, appState.secretKeyword));
+            let finalNotes = [existingSecretNote, trickNote, ...nonTrickOrSecretNotes].filter(Boolean);
+            saveLocalNotes(finalNotes);
+            setState({ notes: sortNotes(finalNotes), isLoading: false });
+            setupMindReadingListener();
+        };
+
+        const renderApp = () => {
+            const appDiv = document.getElementById('app');
+            if (!appDiv) return;
+            const activeElementId = document.activeElement?.id;
+            const cursorStart = document.activeElement?.selectionStart;
+            const cursorEnd = document.activeElement?.selectionEnd;
+            const editorScrollTop = document.getElementById('content-editor')?.scrollTop;
+            if (appState.isLoading) {
+                appDiv.innerHTML = `<div class="flex items-center justify-center h-full">${Icons.Loader2}<span class="ml-3 text-lg text-gray-600 dark:text-gray-400">Memuat...</span></div>`;
+                return;
+            }
+            const isSecretNote = appState.activeNoteId && isMatchingSecretKeyword(appState.title, appState.secretKeyword);
+            if (appState.activeNoteId !== null) {
+                appDiv.innerHTML = isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor();
+            } else {
+                appDiv.innerHTML = renderNoteList();
+            }
+            if (activeElementId && document.getElementById(activeElementId)) {
+                const elementToFocus = document.getElementById(activeElementId);
+                elementToFocus.focus();
+                if (elementToFocus.setSelectionRange) {
+                    elementToFocus.setSelectionRange(cursorStart, cursorEnd);
+                }
+                if (elementToFocus.id === 'content-editor') {
+                    elementToFocus.scrollTop = editorScrollTop;
+                }
+            }
+            // Expose Global functions
+            Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleHallucinationTrigger, handleModeChange, handleSaveAllSettings, setState, handleLiveInput, startLongPress, cancelLongPress, handleCreateOrCheckId });
+        };
+
+        // Mulai Aplikasi & Service Worker
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker terdaftar.', reg))
+                    .catch(err => console.error('Pendaftaran Service Worker gagal:', err));
+            }
+            setTimeout(initApp, 300);
+        });
+
+    </script>
+</body>
+</html>
