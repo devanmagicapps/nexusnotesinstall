@@ -34,15 +34,23 @@
         /* Menggunakan font Inter secara global */
         body {
             font-family: 'Inter', sans-serif;
-            margin: 0;
-            overscroll-behavior: none; /* Mencegah pull-to-refresh */
         }
-        /* Style untuk memastikan body mengisi seluruh viewport */
-        html, body, #app {
+        
+        /* ATURAN BARU: Mencegah scroll di level body dan html */
+        html, body {
+            height: 100vh; /* Mengunci tinggi ke viewport */
+            width: 100vw;
+            overflow: hidden; /* Mencegah scrollbar muncul */
+            margin: 0;
+            padding: 0;
+        }
+
+        #app, #app-content {
             height: 100%;
             width: 100%;
-            overflow: hidden; /* Mencegah scroll di level body */
+            overflow: hidden; /* Memastikan kontainer utama juga tidak bisa scroll */
         }
+
         /* Custom scrollbar untuk tampilan dark/minimalis */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
@@ -253,7 +261,7 @@
 
         const showStatus = (message, isError = false) => {
             setState({ statusMessage: { message, isError } });
-            setTimeout(() => setState({ statusMessage: null }), 4000); 
+            setTimeout(() => setState({ statusMessage: null }), 3900); 
         };
         
         const handleLiveInput = (key, value) => {
@@ -551,7 +559,7 @@
         };
 
         const renderSecretSettingsPanel = () => {
-            const { secretKeyword, customId, statusMessage, appMode, startItemsList, endItemsList, isSaving } = appState;
+            const { secretKeyword, customId, appMode, startItemsList, endItemsList } = appState;
             
             const ItemListForm = (type, list) => `
                 <div class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col mt-4">
@@ -592,7 +600,6 @@
                            ${ItemListForm('start', startItemsList)}
                            ${appMode === 'Hallucination' ? ItemListForm('end', endItemsList) : ''}
                         </div>
-                        
                     </div>
                 </div>
             `;
@@ -676,15 +683,13 @@
 
             // Render status message
             if (statusContainer) {
+                statusContainer.innerHTML = ''; // Hapus pesan lama
                 if (appState.statusMessage) {
                     const { message, isError } = appState.statusMessage;
-                    statusContainer.innerHTML = `
-                        <div class="pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out">
-                            ${message}
-                        </div>
-                    `;
-                } else {
-                    statusContainer.innerHTML = '';
+                    const statusElement = document.createElement('div');
+                    statusElement.className = `pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out`;
+                    statusElement.textContent = message;
+                    statusContainer.appendChild(statusElement);
                 }
             }
             
