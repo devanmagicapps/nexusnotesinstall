@@ -72,6 +72,13 @@
         .animate-fade-in-out {
             animation: fadeInOut 4s ease-in-out forwards;
         }
+
+        /* Class untuk mencegah seleksi teks */
+        .no-select {
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ and Edge */
+            user-select: none; /* Standard syntax */
+        }
     </style>
 </head>
 <body class="bg-white">
@@ -560,6 +567,8 @@
                 extraAttributes = `onmousedown="window.startLongPress(event)" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress(event)" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
             }
 
+            const textAreaClass = `flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg ${isMindReadingNote ? 'no-select' : ''}`;
+
             return `
                 <div class="flex flex-col h-full bg-white p-4 light-theme">
                     <header class="flex justify-between items-center mb-4 flex-shrink-0">
@@ -579,7 +588,7 @@
                     <textarea
                         id="content-editor" oninput="window.handleLiveInput('content', this.value)"
                         placeholder="Isi catatan Anda di sini..."
-                        class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
+                        class="${textAreaClass}"
                         ${extraAttributes}
                         ${isMindReadingNote ? 'readonly' : ''}
                     >${appState.content}</textarea>
