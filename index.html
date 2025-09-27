@@ -78,7 +78,7 @@
 
     <div id="app" class="h-screen w-screen relative">
         <div id="app-content" class="h-full w-full">
-            <!-- Konten loading awal dikembalikan ke versi SVG -->
+            <!-- Konten aplikasi utama akan dirender di sini -->
             <div class="flex items-center justify-center h-full">
                 <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -86,6 +86,8 @@
                 </svg>
             </div>
         </div>
+        <!-- Kontainer untuk modal bantuan -->
+        <div id="modal-container"></div>
         <!-- Kontainer untuk notifikasi floating -->
         <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
     </div>
@@ -164,6 +166,7 @@
             statusMessage: null, 
             longPressTimeout: null,
             originalTrickTitle: '',
+            showHelpModal: false, // State untuk modal bantuan
         };
 
         // --- FUNGSI UTILITY LOCAL STORAGE & UMUM (DIADOPSI DARI CONTOH) ---
@@ -270,6 +273,8 @@
                 const trimmedTitle = value.trim().toUpperCase();
                 if (trimmedTitle === appState.secretKeyword) {
                     checkSecretTitleTrigger(trimmedTitle);
+                } else if (value.trim().toLowerCase() === 'help' && appState.activeNoteId === 'new') {
+                    showHelpModal();
                 }
             }
         };
@@ -289,6 +294,17 @@
                 setState({ notes: updatedNotes, activeNoteId: newNoteId, title: newSecretNote.title, content: newSecretNote.content, rememberedItem: null });
             }
         };
+
+        // --- HANDLER MODAL BANTUAN ---
+        const showHelpModal = () => setState({ showHelpModal: true });
+        const hideHelpModal = () => {
+            if (appState.activeNoteId === 'new' && appState.title.trim().toLowerCase() === 'help') {
+                setState({ showHelpModal: false, activeNoteId: null, title: '', content: '' });
+            } else {
+                setState({ showHelpModal: false });
+            }
+        };
+
 
         // --- HANDLER UTAMA ---
         const handleOpenNote = (note) => setState({ activeNoteId: note.id, title: note.title, content: note.content, rememberedItem: null });
@@ -408,6 +424,10 @@
             const trimmedKeyword = newKeywordInput.trim().toUpperCase();
             if (!trimmedKeyword || trimmedKeyword === appState.secretKeyword) {
                 showStatus("Kata kunci tidak valid atau sama!", true); return;
+            }
+            if (trimmedKeyword === 'HELP') { // Cek baru ditambahkan di sini
+                showStatus("Kata kunci 'HELP' tidak diizinkan!", true); 
+                return;
             }
             saveSecretKeyword(trimmedKeyword);
             
@@ -604,6 +624,29 @@
                 </div>
             `;
         };
+        
+        const renderHelpModal = () => {
+            if (!appState.showHelpModal) return '';
+            return `
+                <div id="help-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="hideHelpModal()">
+                    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full text-gray-800" onclick="event.stopPropagation()">
+                        <h2 class="text-2xl font-bold mb-4 text-indigo-600">Informasi Bantuan</h2>
+                        <p class="mb-4">Jika Anda lupa kata kunci untuk mengakses panel pengaturan, berikut adalah informasi yang Anda butuhkan:</p>
+                        <div class="space-y-3">
+                            <div class="bg-gray-100 p-3 rounded-md">
+                                <p class="text-sm text-gray-500">Kata Kunci Panel:</p>
+                                <p class="text-lg font-mono font-bold text-gray-900">${appState.secretKeyword}</p>
+                            </div>
+                            <div class="bg-gray-100 p-3 rounded-md">
+                                <p class="text-sm text-gray-500">Custom ID (jika ada):</p>
+                                <p class="text-lg font-mono font-bold text-gray-900">${appState.customId || 'Belum diatur'}</p>
+                            </div>
+                        </div>
+                        <button onclick="hideHelpModal()" class="mt-6 w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition">Tutup</button>
+                    </div>
+                </div>
+            `;
+        };
 
         
         // --- FIREBASE LISTENER ---
@@ -665,8 +708,10 @@
 
         const renderApp = () => {
             const appContentDiv = document.getElementById('app-content');
-            if (!appContentDiv) return;
+            const modalContainer = document.getElementById('modal-container');
             const statusContainer = document.getElementById('status-container');
+            
+            if (!appContentDiv || !modalContainer || !statusContainer) return;
             
             if (appState.isLoading) {
                  appContentDiv.innerHTML = `<div class="flex items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
@@ -681,16 +726,17 @@
                 appContentDiv.innerHTML = renderNoteList();
             }
 
+            // Render modal
+            modalContainer.innerHTML = renderHelpModal();
+
             // Render status message
-            if (statusContainer) {
-                statusContainer.innerHTML = ''; // Hapus pesan lama
-                if (appState.statusMessage) {
-                    const { message, isError } = appState.statusMessage;
-                    const statusElement = document.createElement('div');
-                    statusElement.className = `pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out`;
-                    statusElement.textContent = message;
-                    statusContainer.appendChild(statusElement);
-                }
+            statusContainer.innerHTML = ''; // Hapus pesan lama
+            if (appState.statusMessage) {
+                const { message, isError } = appState.statusMessage;
+                const statusElement = document.createElement('div');
+                statusElement.className = `pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out`;
+                statusElement.textContent = message;
+                statusContainer.appendChild(statusElement);
             }
             
             // Expose Global functions
@@ -707,6 +753,7 @@
             window.handleKeywordUpdate = handleKeywordUpdate;
             window.handleCustomIdUpdate = handleCustomIdUpdate;
             window.handleItemsListUpdate = handleItemsListUpdate;
+            window.hideHelpModal = hideHelpModal;
         };
 
         window.addEventListener('load', () => setTimeout(initApp, 300));
