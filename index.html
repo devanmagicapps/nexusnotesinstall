@@ -620,17 +620,6 @@
         };
 
         const renderApp = () => {
-            // --- PENGUNCI GULIR KONSISTEN (GUARDIAN SCRIPT) ---
-            // Kode ini secara paksa menerapkan kembali gaya anti-gulir setiap kali
-            // aplikasi di-render ulang. Ini untuk mengatasi inkonsistensi browser
-            // (terutama di perangkat mobile dengan keyboard virtual) yang mungkin
-            // mengubah gaya 'body' secara tak terduga.
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            document.body.style.width = '100%';
-            // --- AKHIR PENGUNCI GULIR ---
-
             const appContentDiv = document.getElementById('app-content');
             const modalContainer = document.getElementById('modal-container');
             const statusContainer = document.getElementById('status-container');
@@ -653,8 +642,31 @@
             
             Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleNotesSwitchTrigger, handleModeChange, handlePeekSubModeChange, handleLiveInput, startLongPress, cancelLongPress, handleTypeToPeek, handleSettingUpdate, handleCustomIdUpdate, handleItemsListUpdate, hideHelpModal });
         };
+        
+        // --- PENJAGA GULIR (SCROLL GUARDIAN) ---
+        // Mencegah gulir pada body secara proaktif dengan mencegat event.
+        // Ini lebih andal daripada hanya mengandalkan CSS.
+        const preventBodyScroll = (event) => {
+            let target = event.target;
+            while (target && target !== document.body) {
+                // Izinkan gulir HANYA jika elemen atau induknya memiliki kelas 'overflow-y-auto'
+                if (target.classList.contains('overflow-y-auto')) {
+                    return; // Jangan cegah event, biarkan gulir terjadi
+                }
+                target = target.parentElement;
+            }
+            // Jika loop selesai tanpa menemukan area yang boleh digulir, cegah event.
+            event.preventDefault();
+        };
 
-        window.addEventListener('load', () => setTimeout(initApp, 300));
+        window.addEventListener('load', () => {
+            // Pasang penjaga gulir saat aplikasi dimuat
+            // Opsi { passive: false } sangat penting agar preventDefault() berfungsi di browser modern.
+            window.addEventListener('touchmove', preventBodyScroll, { passive: false });
+            window.addEventListener('wheel', preventBodyScroll, { passive: false });
+            
+            setTimeout(initApp, 300);
+        });
 
     </script>
 </body>
