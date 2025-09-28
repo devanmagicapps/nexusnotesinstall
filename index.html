@@ -31,20 +31,24 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Menggunakan font Inter secara global */
+        /* Menggunakan font Inter secara global dan aturan anti-scroll yang lebih kuat */
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-        }
-        
-        /* ATURAN BARU: Mencegah scroll di level body dan html */
-        html, body {
-            height: 100vh; /* Mengunci tinggi ke viewport */
-            width: 100vw;
+            position: fixed; /* Kunci utama untuk mencegah scroll */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             overflow: hidden; /* Mencegah scrollbar muncul */
             margin: 0;
             padding: 0;
         }
-
+        
         #app, #app-content {
             height: 100%;
             width: 100%;
@@ -372,7 +376,6 @@
             let index = appState.typeToPeekIndex;
             if (index < typeToPeekItem.length) {
                 const editor = event.target;
-                const currentVal = editor.value;
                 const revealedPart = typeToPeekItem.substring(0, index + 1);
                 editor.value = revealedPart;
                 appState.content = editor.value;
@@ -611,7 +614,7 @@
             });
 
             syncTrickNotes();
-            setState({ isLoading: false, notes: getLocalNotes() });
+            setState({ isLoading: false, notes: sortNotes(getLocalNotes()) });
             setupPeekListener();
         };
 
