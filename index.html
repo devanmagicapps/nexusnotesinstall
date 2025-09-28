@@ -644,24 +644,30 @@
         };
         
         // --- PENJAGA GULIR (SCROLL GUARDIAN) ---
-        // Mencegah gulir pada body secara proaktif dengan mencegat event.
-        // Ini lebih andal daripada hanya mengandalkan CSS.
         const preventBodyScroll = (event) => {
-            let target = event.target;
-            while (target && target !== document.body) {
-                // Izinkan gulir HANYA jika elemen atau induknya memiliki kelas 'overflow-y-auto'
-                if (target.classList.contains('overflow-y-auto')) {
-                    return; // Jangan cegah event, biarkan gulir terjadi
-                }
-                target = target.parentElement;
+            const target = event.target;
+
+            // PERBAIKAN: Izinkan semua aksi default pada input dan textarea.
+            // Ini akan memperbaiki masalah tidak bisa menaruh kursor.
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                return;
             }
-            // Jika loop selesai tanpa menemukan area yang boleh digulir, cegah event.
+
+            let currentTarget = target;
+            while (currentTarget && currentTarget !== document.body) {
+                if (currentTarget.classList.contains('overflow-y-auto')) {
+                    // Elemen ini boleh digulir, jadi jangan cegah event.
+                    return;
+                }
+                currentTarget = currentTarget.parentElement;
+            }
+            
+            // Jika kita sampai di sini, artinya event terjadi di luar area yang
+            // boleh digulir, jadi kita cegah.
             event.preventDefault();
         };
 
         window.addEventListener('load', () => {
-            // Pasang penjaga gulir saat aplikasi dimuat
-            // Opsi { passive: false } sangat penting agar preventDefault() berfungsi di browser modern.
             window.addEventListener('touchmove', preventBodyScroll, { passive: false });
             window.addEventListener('wheel', preventBodyScroll, { passive: false });
             
