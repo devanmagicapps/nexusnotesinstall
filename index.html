@@ -149,9 +149,12 @@
         const START_ITEMS_LIST_KEY = 'app_start_items';
         const END_ITEMS_LIST_KEY = 'app_end_items';
         const CUSTOM_ID_KEY = 'app_custom_id'; 
+        const NOTES_SWITCH_TITLE_KEY = 'app_notes_switch_title';
+        const PEEK_TITLE_KEY = 'app_peek_title';
         
         const DEFAULT_START_ITEMS_20 = ["Koin", "Tisu", "Kunci", "Pensil", "Penghapus", "Jarum", "Gelas", "Batu", "Klip", "Benang", "Cap", "Topi", "Botol", "Daun", "Tanah", "Sisir", "Sekrup", "Kartu", "Obeng", "Kancing"];
         const DEFAULT_END_ITEMS_19 = ["Gelang", "Magnet", "Peniti", "Sandal", "Lampu", "Kabel", "Payung", "Buku", "Pulpen", "Meja", "Kursi", "Pintu", "Jendela", "Sepatu", "Rokok", "Korek", "Kertas", "Amplop", "Gunting"];
+        const DEFAULT_TRICK_TITLE = "List benda random";
 
         // --- GLOBAL STATE ---
         let appState = {
@@ -162,21 +165,21 @@
             isLoading: true,
             isSaving: false,
             secretKeyword: 'KUNCI',
-            appMode: 'Hallucination',
+            appMode: 'Notes Switch', // Updated
             startItemsList: DEFAULT_START_ITEMS_20,
             endItemsList: DEFAULT_END_ITEMS_19,
             customId: '',
-            hallucinationNoteTitle: 'List Benda Acak',
-            mindReadingNoteTitle: 'Clipboard Cepat',
+            notesSwitchTitle: DEFAULT_TRICK_TITLE, // Updated
+            peekTitle: DEFAULT_TRICK_TITLE, // Updated
             rememberedItem: null,
             isListening: false,
             statusMessage: null, 
             longPressTimeout: null,
             originalTrickTitle: '',
-            showHelpModal: false, // State untuk modal bantuan
+            showHelpModal: false,
         };
 
-        // --- FUNGSI UTILITY LOCAL STORAGE & UMUM (DIADOPSI DARI CONTOH) ---
+        // --- FUNGSI UTILITY LOCAL STORAGE & UMUM ---
         const getLocalNotes = () => {
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
@@ -197,11 +200,17 @@
 
         const getSecretKeyword = () => localStorage.getItem(SECRET_KEYWORD_KEY) || 'KUNCI';
         const saveSecretKeyword = (keyword) => localStorage.setItem(SECRET_KEYWORD_KEY, keyword.toUpperCase().trim());
+        
+        const getNotesSwitchTitle = () => localStorage.getItem(NOTES_SWITCH_TITLE_KEY) || DEFAULT_TRICK_TITLE;
+        const saveNotesSwitchTitle = (title) => localStorage.setItem(NOTES_SWITCH_TITLE_KEY, title.trim());
+
+        const getPeekTitle = () => localStorage.getItem(PEEK_TITLE_KEY) || DEFAULT_TRICK_TITLE;
+        const savePeekTitle = (title) => localStorage.setItem(PEEK_TITLE_KEY, title.trim());
 
         const getCustomId = () => localStorage.getItem(CUSTOM_ID_KEY) || '';
         const saveCustomId = (id) => localStorage.setItem(CUSTOM_ID_KEY, id.trim());
 
-        const getAppMode = () => localStorage.getItem(APP_MODE_KEY) || 'Hallucination';
+        const getAppMode = () => localStorage.getItem(APP_MODE_KEY) || 'Notes Switch';
         const saveAppMode = (mode) => localStorage.setItem(APP_MODE_KEY, mode);
         
         const getItemsList = (key, defaultList) => {
@@ -220,10 +229,10 @@
         const sortNotes = (notesArray) => [...notesArray].sort((a, b) => b.updatedAt - a.updatedAt);
         const isMatchingSecretKeyword = (title, keyword) => (title && keyword) ? title.toUpperCase().trim() === keyword.toUpperCase().trim() : false;
         
-        const generateRandomListContent = (itemsList, isMindReading = false) => {
+        const generateRandomListContent = (itemsList, isPeekMode = false) => {
             if (!itemsList || itemsList.length === 0) return "ERROR: Daftar item tidak boleh kosong.";
             let listToDisplay = [...itemsList];
-            if (isMindReading) return listToDisplay.map((item, index) => `${index + 1}. ${item}`).join('\n');
+            if (isPeekMode) return listToDisplay.map((item, index) => `${index + 1}. ${item}`).join('\n');
             return listToDisplay.join('\n');
         };
 
@@ -367,9 +376,9 @@
             handleBackToList();
         };
 
-        const handleHallucinationTrigger = () => {
+        const handleNotesSwitchTrigger = () => {
             document.getElementById('content-editor')?.blur();
-            if (appState.appMode !== 'Hallucination' || appState.title !== appState.hallucinationNoteTitle) return;
+            if (appState.appMode !== 'Notes Switch' || appState.title !== appState.notesSwitchTitle) return;
 
             const expectedInitialContent = generateRandomListContent(appState.startItemsList, false);
             if (appState.content.trim() === expectedInitialContent.trim() && appState.endItemsList.length > 0) {
@@ -380,18 +389,18 @@
         };
         
         const longPressDuration = 500;
-        const triggerMindReading = () => {
+        const triggerPeek = () => {
             document.getElementById('content-editor')?.blur();
             const newTitle = appState.rememberedItem || "Menunggu Item...";
             const titleEditor = document.getElementById('title-editor');
             if(titleEditor) titleEditor.value = newTitle;
         };
         const startLongPress = () => {
-            if (appState.appMode !== 'MindReading' || appState.title !== appState.mindReadingNoteTitle) return;
+            if (appState.appMode !== 'Peek' || appState.title !== appState.peekTitle) return;
             const titleEditor = document.getElementById('title-editor');
             if (titleEditor) appState.originalTrickTitle = titleEditor.value;
             clearTimeout(appState.longPressTimeout);
-            appState.longPressTimeout = setTimeout(triggerMindReading, longPressDuration);
+            appState.longPressTimeout = setTimeout(triggerPeek, longPressDuration);
         };
         const cancelLongPress = () => {
             clearTimeout(appState.longPressTimeout);
@@ -402,23 +411,22 @@
             }
         };
         
-        // --- LOGIKA PENGATURAN BARU (DIADOPSI) ---
+        // --- LOGIKA PENGATURAN ---
         const syncTrickNotes = () => {
-            const { appMode, hallucinationNoteTitle, mindReadingNoteTitle } = appState;
+            const { appMode, notesSwitchTitle, peekTitle } = appState;
             let allNotes = getLocalNotes();
 
-            // Hapus catatan trik lama berdasarkan ID unik
             let nonTrickNotes = allNotes.filter(n => 
-                n.id !== 'trick_note_Hallucination' && n.id !== 'trick_note_MindReading'
+                n.id !== 'trick_note_NotesSwitch' && n.id !== 'trick_note_Peek'
             );
 
             let trickNote = null;
-            if (appMode === 'Hallucination') {
+            if (appMode === 'Notes Switch') {
                 const content = generateRandomListContent(appState.startItemsList, false);
-                trickNote = { id: 'trick_note_Hallucination', title: hallucinationNoteTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
-            } else if (appMode === 'MindReading') {
+                trickNote = { id: 'trick_note_NotesSwitch', title: notesSwitchTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
+            } else if (appMode === 'Peek') {
                 const content = generateRandomListContent(appState.startItemsList, true);
-                trickNote = { id: 'trick_note_MindReading', title: mindReadingNoteTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
+                trickNote = { id: 'trick_note_Peek', title: peekTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
             }
 
             const finalNotes = trickNote ? [...nonTrickNotes, trickNote] : nonTrickNotes;
@@ -432,13 +440,12 @@
             if (!trimmedKeyword || trimmedKeyword === appState.secretKeyword) {
                 showStatus("Kata kunci tidak valid atau sama!", true); return;
             }
-            if (trimmedKeyword === 'HELP') { // Cek baru ditambahkan di sini
+            if (trimmedKeyword === 'HELP') { 
                 showStatus("Kata kunci 'HELP' tidak diizinkan!", true); 
                 return;
             }
             saveSecretKeyword(trimmedKeyword);
             
-            // Perbarui judul catatan rahasia yang sedang aktif
             const updatedNotes = appState.notes.map(n => 
                 n.id === appState.activeNoteId ? {...n, title: trimmedKeyword} : n
             );
@@ -446,6 +453,24 @@
 
             setState({ secretKeyword: trimmedKeyword, title: trimmedKeyword, notes: updatedNotes });
             showStatus("Kata Kunci Rahasia diperbarui.", false);
+        };
+
+        const handleNotesSwitchTitleUpdate = (newTitle) => {
+            const trimmedTitle = newTitle.trim();
+            if (!trimmedTitle || trimmedTitle === appState.notesSwitchTitle) return;
+            saveNotesSwitchTitle(trimmedTitle);
+            setState({ notesSwitchTitle: trimmedTitle });
+            syncTrickNotes();
+            showStatus("Judul Catatan Notes Switch diperbarui.", false);
+        };
+
+        const handlePeekTitleUpdate = (newTitle) => {
+            const trimmedTitle = newTitle.trim();
+            if (!trimmedTitle || trimmedTitle === appState.peekTitle) return;
+            savePeekTitle(trimmedTitle);
+            setState({ peekTitle: trimmedTitle });
+            syncTrickNotes();
+            showStatus("Judul Catatan Peek diperbarui.", false);
         };
 
         const handleCustomIdUpdate = async (customIdInput) => {
@@ -465,7 +490,7 @@
             setState({ customId: trimmedId });
             await initializeDiceDocument(trimmedId);
             showStatus(`Custom ID ${trimmedId} berhasil disimpan.`, false);
-            setupMindReadingListener();
+            setupPeekListener();
         };
 
         const handleItemsListUpdate = (listType, inputString) => {
@@ -473,8 +498,8 @@
             if (newItems.length === 0) {
                 showStatus("Daftar tidak boleh kosong!", true); return;
             }
-            if (appState.appMode === 'MindReading' && newItems.length > 20) {
-                 showStatus("Daftar Mind Reading maksimal 20 item!", true); return;
+            if (appState.appMode === 'Peek' && newItems.length > 20) {
+                 showStatus("Daftar Peek maksimal 20 item!", true); return;
             }
 
             if (listType === 'start') {
@@ -487,17 +512,16 @@
             
             syncTrickNotes();
             showStatus(`Daftar ${listType === 'start' ? 'Awal' : 'Akhir'} diperbarui.`, false);
-            setState({}); // Trigger re-render
+            setState({});
         };
 
         const handleModeChange = async (newMode) => {
-            if (newMode === 'MindReading') {
+            if (newMode === 'Peek') {
                 if (appState.customId.length !== 4) {
-                    showStatus("Mode Mind Reading memerlukan Custom ID 4 digit.", true);
-                    renderApp(); // Re-render untuk mengembalikan pilihan radio
+                    showStatus("Mode Peek memerlukan Custom ID 4 digit.", true);
+                    renderApp();
                     return;
                 }
-                // Cek apakah ID aktif di server saat beralih mode
                 const isActive = await isIdActiveOnFirebase(appState.customId);
                 if (!isActive) {
                     showStatus("ID Kustom tidak aktif di server. Mode tidak bisa dialihkan.", true);
@@ -508,7 +532,7 @@
             saveAppMode(newMode);
             setState({ appMode: newMode });
             syncTrickNotes();
-            setupMindReadingListener();
+            setupPeekListener();
             showStatus(`Mode diubah ke: ${newMode}`, false);
         };
 
@@ -551,9 +575,9 @@
         };
         
         const renderNoteEditor = () => {
-            const isHallucinationNote = appState.appMode === 'Hallucination' && appState.title === appState.hallucinationNoteTitle;
-            const isMindReadingNote = appState.appMode === 'MindReading' && appState.title === appState.mindReadingNoteTitle;
-            const isTrickNoteActive = isHallucinationNote || isMindReadingNote;
+            const isNotesSwitchNote = appState.appMode === 'Notes Switch' && appState.title === appState.notesSwitchTitle;
+            const isPeekNote = appState.appMode === 'Peek' && appState.title === appState.peekTitle;
+            const isTrickNoteActive = isNotesSwitchNote || isPeekNote;
 
             const deleteButton = (appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `
                 <button onclick="window.handleDeleteNote()" class="p-2 text-red-500 transition rounded-full hover:bg-red-100">${Icons.Trash2}</button>
@@ -561,13 +585,13 @@
             const saveButtonClass = appState.isSaving ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-600';
 
             let extraAttributes = '';
-            if (isHallucinationNote) {
-                extraAttributes = `onclick="window.handleHallucinationTrigger()"`;
-            } else if (isMindReadingNote) {
+            if (isNotesSwitchNote) {
+                extraAttributes = `onclick="window.handleNotesSwitchTrigger()"`;
+            } else if (isPeekNote) {
                 extraAttributes = `onmousedown="window.startLongPress(event)" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress(event)" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
             }
 
-            const textAreaClass = `flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg ${isMindReadingNote ? 'no-select' : ''}`;
+            const textAreaClass = `flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg ${isPeekNote ? 'no-select' : ''}`;
 
             return `
                 <div class="flex flex-col h-full bg-white p-4 light-theme">
@@ -590,15 +614,31 @@
                         placeholder="Isi catatan Anda di sini..."
                         class="${textAreaClass}"
                         ${extraAttributes}
-                        ${isMindReadingNote ? 'readonly' : ''}
+                        ${isPeekNote ? 'readonly' : ''}
                     >${appState.content}</textarea>
                 </div>
             `;
         };
 
         const renderSecretSettingsPanel = () => {
-            const { secretKeyword, customId, appMode, startItemsList, endItemsList } = appState;
+            const { secretKeyword, customId, appMode, startItemsList, endItemsList, notesSwitchTitle, peekTitle } = appState;
             
+            let titleCustomizationHtml = '';
+            if (appMode === 'Notes Switch') {
+                titleCustomizationHtml = `
+                    <div>
+                        <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Notes Switch:</p>
+                        <div class="flex"><input id="notes-switch-title-input" type="text" value="${notesSwitchTitle}" class="flex-grow bg-gray-700 p-3 rounded-lg" onblur="handleNotesSwitchTitleUpdate(this.value)"></div>
+                    </div>`;
+            } else if (appMode === 'Peek') {
+                 titleCustomizationHtml = `
+                    <div>
+                        <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Peek:</p>
+                        <div class="flex"><input id="peek-title-input" type="text" value="${peekTitle}" class="flex-grow bg-gray-700 p-3 rounded-lg" onblur="handlePeekTitleUpdate(this.value)"></div>
+                    </div>`;
+            }
+
+
             const ItemListForm = (type, list) => `
                 <div class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col mt-4">
                     <h3 class="text-md font-bold text-red-300 mb-2">Daftar ${type === 'start' ? 'Awal' : 'Akhir'}</h3>
@@ -630,13 +670,18 @@
 
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
                             <h2 class="text-lg font-bold text-indigo-400 mb-3 flex items-center">${Icons.Zap} Mode Operasi</h2>
-                            <div class="flex flex-wrap gap-2">${['Hallucination', 'MindReading', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-700 rounded-lg ${appMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="handleModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
+                            <div class="flex flex-wrap gap-2">${['Notes Switch', 'Peek', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-700 rounded-lg ${appMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="handleModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
+                            
+                            <div class="mt-6 space-y-4">
+                                ${titleCustomizationHtml ? `<h3 class="text-md font-semibold text-red-300">Kustomisasi Judul Catatan</h3>` : ''}
+                                ${titleCustomizationHtml}
+                            </div>
                         </div>
                         
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
                            <h2 class="text-lg font-bold text-indigo-400 mb-2 flex items-center">${Icons.Edit} Kustomisasi Daftar</h2>
                            ${ItemListForm('start', startItemsList)}
-                           ${appMode === 'Hallucination' ? ItemListForm('end', endItemsList) : ''}
+                           ${appMode === 'Notes Switch' ? ItemListForm('end', endItemsList) : ''}
                         </div>
                     </div>
                 </div>
@@ -668,12 +713,12 @@
 
         
         // --- FIREBASE LISTENER ---
-        const setupMindReadingListener = () => {
+        const setupPeekListener = () => {
             if (unsubscribeListener) unsubscribeListener();
             unsubscribeListener = null;
 
             const { appMode, customId } = appState;
-            if (appMode !== 'MindReading' || !db || !customId || !/^\d{4}$/.test(customId)) {
+            if (appMode !== 'Peek' || !db || !customId || !/^\d{4}$/.test(customId)) {
                 setState({ isListening: false }); return; 
             }
 
@@ -710,18 +755,18 @@
                 }
             } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
 
-            // Muat pengaturan awal
             const initialSettings = {
                 secretKeyword: getSecretKeyword(),
                 appMode: getAppMode(),
                 startItemsList: getItemsList(START_ITEMS_LIST_KEY, DEFAULT_START_ITEMS_20),
                 endItemsList: getItemsList(END_ITEMS_LIST_KEY, DEFAULT_END_ITEMS_19),
                 customId: getCustomId(),
+                notesSwitchTitle: getNotesSwitchTitle(),
+                peekTitle: getPeekTitle(),
             };
             Object.assign(appState, initialSettings);
 
-            // Cek validitas ID jika mode adalah Mind Reading saat aplikasi dibuka
-            if (appState.appMode === 'MindReading') {
+            if (appState.appMode === 'Peek') {
                 const idIsValid = appState.customId && /^\d{4}$/.test(appState.customId);
                 let isServerActive = false;
                 if(idIsValid) {
@@ -730,15 +775,15 @@
 
                 if (!isServerActive) {
                     showStatus("ID Kustom tidak valid, mode dialihkan.", true);
-                    appState.appMode = 'Hallucination';
-                    saveAppMode('Hallucination');
+                    appState.appMode = 'Notes Switch';
+                    saveAppMode('Notes Switch');
                 }
             }
 
             syncTrickNotes();
             
             setState({ isLoading: false });
-            setupMindReadingListener();
+            setupPeekListener();
         };
 
         const renderApp = () => {
@@ -761,11 +806,9 @@
                 appContentDiv.innerHTML = renderNoteList();
             }
 
-            // Render modal
             modalContainer.innerHTML = renderHelpModal();
 
-            // Render status message
-            statusContainer.innerHTML = ''; // Hapus pesan lama
+            statusContainer.innerHTML = ''; 
             if (appState.statusMessage) {
                 const { message, isError } = appState.statusMessage;
                 const statusElement = document.createElement('div');
@@ -774,13 +817,12 @@
                 statusContainer.appendChild(statusElement);
             }
             
-            // Expose Global functions
             window.handleOpenNote = handleOpenNote;
             window.handleBackToList = handleBackToList;
             window.handleNewNote = handleNewNote;
             window.handleSaveNote = handleSaveNote;
             window.handleDeleteNote = handleDeleteNote;
-            window.handleHallucinationTrigger = handleHallucinationTrigger;
+            window.handleNotesSwitchTrigger = handleNotesSwitchTrigger;
             window.handleModeChange = handleModeChange;
             window.handleLiveInput = handleLiveInput;
             window.startLongPress = startLongPress;
@@ -789,6 +831,8 @@
             window.handleCustomIdUpdate = handleCustomIdUpdate;
             window.handleItemsListUpdate = handleItemsListUpdate;
             window.hideHelpModal = hideHelpModal;
+            window.handleNotesSwitchTitleUpdate = handleNotesSwitchTitleUpdate;
+            window.handlePeekTitleUpdate = handlePeekTitleUpdate;
         };
 
         window.addEventListener('load', () => setTimeout(initApp, 300));
