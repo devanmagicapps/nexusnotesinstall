@@ -146,6 +146,7 @@
         const STORAGE_KEY = 'minimalist_offline_notes';
         const SECRET_KEYWORD_KEY = 'app_secret_keyword'; 
         const APP_MODE_KEY = 'app_current_mode';
+        const PEEK_SUB_MODE_KEY = 'app_peek_sub_mode';
         const START_ITEMS_LIST_KEY = 'app_start_items';
         const END_ITEMS_LIST_KEY = 'app_end_items';
         const CUSTOM_ID_KEY = 'app_custom_id'; 
@@ -165,13 +166,16 @@
             isLoading: true,
             isSaving: false,
             secretKeyword: 'KUNCI',
-            appMode: 'Notes Switch', // Updated
+            appMode: 'Notes Switch',
+            peekSubMode: 'Hold to Peek',
             startItemsList: DEFAULT_START_ITEMS_20,
             endItemsList: DEFAULT_END_ITEMS_19,
             customId: '',
-            notesSwitchTitle: DEFAULT_TRICK_TITLE, // Updated
-            peekTitle: DEFAULT_TRICK_TITLE, // Updated
+            notesSwitchTitle: DEFAULT_TRICK_TITLE,
+            peekTitle: DEFAULT_TRICK_TITLE,
             rememberedItem: null,
+            typeToPeekItem: null,
+            typeToPeekIndex: 0,
             isListening: false,
             statusMessage: null, 
             longPressTimeout: null,
@@ -184,18 +188,11 @@
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 return stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                console.error("Gagal memuat catatan dari Local Storage:", e);
-                return [];
-            }
+            } catch (e) { console.error("Gagal memuat catatan dari Local Storage:", e); return []; }
         };
 
         const saveLocalNotes = (notes) => {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-            } catch (e) {
-                console.error("Gagal menyimpan catatan ke Local Storage:", e);
-            }
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); } catch (e) { console.error("Gagal menyimpan catatan ke Local Storage:", e); }
         };
 
         const getSecretKeyword = () => localStorage.getItem(SECRET_KEYWORD_KEY) || 'KUNCI';
@@ -212,20 +209,19 @@
 
         const getAppMode = () => localStorage.getItem(APP_MODE_KEY) || 'Notes Switch';
         const saveAppMode = (mode) => localStorage.setItem(APP_MODE_KEY, mode);
+
+        const getPeekSubMode = () => localStorage.getItem(PEEK_SUB_MODE_KEY) || 'Hold to Peek';
+        const savePeekSubMode = (mode) => localStorage.setItem(PEEK_SUB_MODE_KEY, mode);
         
         const getItemsList = (key, defaultList) => {
             try {
                 const stored = localStorage.getItem(key);
                 const parsed = stored ? JSON.parse(stored) : null;
                 return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultList; 
-            } catch (e) {
-                console.error(`Gagal memuat daftar dari ${key}:`, e);
-                return defaultList;
-            }
+            } catch (e) { console.error(`Gagal memuat daftar dari ${key}:`, e); return defaultList; }
         };
 
         const saveItemsList = (key, list) => localStorage.setItem(key, JSON.stringify(list));
-
         const sortNotes = (notesArray) => [...notesArray].sort((a, b) => b.updatedAt - a.updatedAt);
         const isMatchingSecretKeyword = (title, keyword) => (title && keyword) ? title.toUpperCase().trim() === keyword.toUpperCase().trim() : false;
         
@@ -242,34 +238,13 @@
             try {
                 await setDoc(docRef, { currentDiceNumber: 1, initializedAt: Date.now() }, { merge: false });
                 if (showSuccess) showStatus(`ID Unik ${id} berhasil dibuat dan diaktifkan!`, false);
-            } catch (e) {
-                console.error("Gagal membuat dokumen Firestore dice:", e);
-                showStatus(`Gagal membuat ID: ${e.message}`, true);
-            }
-        };
-
-        const isCustomIdUnique = async (id) => {
-            if (!db || !/^\d{4}$/.test(id)) return false;
-            const docRef = doc(db, `dice/${id}`);
-            try {
-                const docSnap = await getDoc(docRef);
-                return !docSnap.exists();
-            } catch (e) {
-                console.error("Gagal memeriksa keunikan Custom ID:", e);
-                return false; 
-            }
+            } catch (e) { console.error("Gagal membuat dokumen Firestore dice:", e); showStatus(`Gagal membuat ID: ${e.message}`, true); }
         };
 
         const isIdActiveOnFirebase = async (id) => {
             if (!db || !/^\d{4}$/.test(id)) return false;
             const docRef = doc(db, `dice/${id}`);
-            try {
-                const docSnap = await getDoc(docRef);
-                return docSnap.exists();
-            } catch (e) {
-                console.error("Gagal memeriksa status ID di Firebase:", e);
-                return false; 
-            }
+            try { return (await getDoc(docRef)).exists(); } catch (e) { console.error("Gagal memeriksa status ID di Firebase:", e); return false; }
         };
 
         // --- STATE MANAGEMENT DAN RENDER UTAMA ---
@@ -297,75 +272,57 @@
 
         const checkSecretTitleTrigger = (secretTitle) => {
             const existingSecretNote = appState.notes.find(n => isMatchingSecretKeyword(n.title, secretTitle));
-            const currentContentInEditor = document.getElementById('content-editor')?.value || appState.content;
-
             if (existingSecretNote) {
-                setState({ activeNoteId: existingSecretNote.id, title: existingSecretNote.title, content: existingSecretNote.content, rememberedItem: null });
+                setState({ activeNoteId: existingSecretNote.id, title: existingSecretNote.title, content: existingSecretNote.content });
             } else {
                 const newNoteId = Date.now().toString();
-                const timestamp = Date.now();
-                const newSecretNote = { id: newNoteId, title: secretTitle, content: currentContentInEditor, createdAt: timestamp, updatedAt: timestamp };
-                let updatedNotes = [newSecretNote, ...appState.notes.filter(note => note.id !== appState.activeNoteId && !isMatchingSecretKeyword(note.title, secretTitle))];
+                const newSecretNote = { id: newNoteId, title: secretTitle, content: '', createdAt: Date.now(), updatedAt: Date.now() };
+                const updatedNotes = [newSecretNote, ...appState.notes.filter(note => note.id !== appState.activeNoteId)];
                 saveLocalNotes(updatedNotes);
-                setState({ notes: updatedNotes, activeNoteId: newNoteId, title: newSecretNote.title, content: newSecretNote.content, rememberedItem: null });
+                setState({ notes: updatedNotes, activeNoteId: newNoteId, title: newSecretNote.title, content: newSecretNote.content });
             }
         };
 
         // --- HANDLER MODAL BANTUAN ---
         const showHelpModal = () => setState({ showHelpModal: true });
         const hideHelpModal = () => {
-            if (appState.activeNoteId === 'new' && appState.title.trim().toLowerCase() === 'help') {
-                setState({ showHelpModal: false, activeNoteId: null, title: '', content: '' });
-            } else {
-                setState({ showHelpModal: false });
-            }
+            const shouldClear = appState.activeNoteId === 'new' && appState.title.trim().toLowerCase() === 'help';
+            setState({ showHelpModal: false, ...(shouldClear && { activeNoteId: null, title: '', content: '' }) });
         };
 
-
         // --- HANDLER UTAMA ---
-        const handleOpenNote = (note) => setState({ activeNoteId: note.id, title: note.title, content: note.content, rememberedItem: null });
-        const handleBackToList = () => setState({ activeNoteId: null, title: '', content: '', rememberedItem: null });
-        const handleNewNote = () => setState({ activeNoteId: 'new', title: '', content: '', rememberedItem: null });
+        const handleOpenNote = (note) => setState({ activeNoteId: note.id, title: note.title, content: note.content });
+        const handleBackToList = () => setState({ activeNoteId: null, title: '', content: '' });
+        
+        const handleNewNote = () => {
+            setState({ activeNoteId: 'new', title: '', content: '', typeToPeekIndex: 0 });
+        };
 
-        const handleSaveNote = (internalCall = false) => {
-            if (appState.isSaving && !internalCall) return;
-            
+        const handleSaveNote = () => {
             const titleEditor = document.getElementById('title-editor');
             const contentEditor = document.getElementById('content-editor');
-            if (titleEditor) appState.title = titleEditor.value;
-            if (contentEditor) appState.content = contentEditor.value;
+            const noteTitle = (titleEditor?.value.trim() || appState.title.trim()) || 'Catatan Tanpa Judul';
+            const noteContent = contentEditor?.value || appState.content;
 
-            const noteTitle = appState.title.trim() || 'Catatan Tanpa Judul';
-            const noteContent = appState.content; 
-            
-            if (!noteTitle && !noteContent) {
-                handleBackToList();
-                return;
-            }
+            if (!noteTitle && !noteContent) { handleBackToList(); return; }
 
             setState({ isSaving: true });
             const timestamp = Date.now();
             let updatedNotes;
             let newNoteId = appState.activeNoteId;
-            const isSecretNoteBeingSaved = isMatchingSecretKeyword(noteTitle, appState.secretKeyword);
-            let isNew = false;
 
             if (appState.activeNoteId && appState.activeNoteId !== 'new') {
                 updatedNotes = appState.notes.map(note => note.id === appState.activeNoteId ? { ...note, title: noteTitle, content: noteContent, updatedAt: timestamp } : note);
             } else {
-                isNew = true;
                 newNoteId = timestamp.toString();
-                const newNote = { id: newNoteId, title: noteTitle, content: noteContent, createdAt: timestamp, updatedAt: timestamp };
-                updatedNotes = [newNote, ...appState.notes];
+                updatedNotes = [{ id: newNoteId, title: noteTitle, content: noteContent, createdAt: timestamp, updatedAt: timestamp }, ...appState.notes];
             }
             
             const finalNotes = sortNotes(updatedNotes);
             saveLocalNotes(finalNotes);
-            setState({ notes: finalNotes, isSaving: false, activeNoteId: isNew ? newNoteId : appState.activeNoteId });
+            setState({ notes: finalNotes, isSaving: false, activeNoteId: isMatchingSecretKeyword(noteTitle, appState.secretKeyword) ? newNoteId : appState.activeNoteId });
             
-            if (!internalCall && !isSecretNoteBeingSaved) { 
-                handleBackToList(); 
-            }
+            if (!isMatchingSecretKeyword(noteTitle, appState.secretKeyword)) { handleBackToList(); }
         };
 
         const handleDeleteNote = () => {
@@ -379,27 +336,22 @@
         const handleNotesSwitchTrigger = () => {
             document.getElementById('content-editor')?.blur();
             if (appState.appMode !== 'Notes Switch' || appState.title !== appState.notesSwitchTitle) return;
-
-            const expectedInitialContent = generateRandomListContent(appState.startItemsList, false);
+            const expectedInitialContent = generateRandomListContent(appState.startItemsList);
             if (appState.content.trim() === expectedInitialContent.trim() && appState.endItemsList.length > 0) {
-                const newContent = generateRandomListContent(appState.endItemsList, false); 
-                appState.content = newContent;
-                renderApp(); 
+                const newContent = generateRandomListContent(appState.endItemsList);
+                setState({ content: newContent });
             }
         };
         
         const longPressDuration = 500;
         const triggerPeek = () => {
             document.getElementById('content-editor')?.blur();
-            const newTitle = appState.rememberedItem || "Menunggu Item...";
             const titleEditor = document.getElementById('title-editor');
-            if(titleEditor) titleEditor.value = newTitle;
+            if (titleEditor) titleEditor.value = appState.rememberedItem || "Menunggu Item...";
         };
         const startLongPress = () => {
-            if (appState.appMode !== 'Peek' || appState.title !== appState.peekTitle) return;
-            const titleEditor = document.getElementById('title-editor');
-            if (titleEditor) appState.originalTrickTitle = titleEditor.value;
-            clearTimeout(appState.longPressTimeout);
+            if (appState.appMode !== 'Peek' || appState.peekSubMode !== 'Hold to Peek' || appState.title !== appState.peekTitle) return;
+            appState.originalTrickTitle = document.getElementById('title-editor')?.value || '';
             appState.longPressTimeout = setTimeout(triggerPeek, longPressDuration);
         };
         const cancelLongPress = () => {
@@ -410,69 +362,51 @@
                 appState.originalTrickTitle = '';
             }
         };
+
+        const handleTypeToPeek = (event) => {
+            const { appMode, peekSubMode, activeNoteId, typeToPeekItem } = appState;
+            if (appMode !== 'Peek' || peekSubMode !== 'Type to Peek' || activeNoteId !== 'new' || !typeToPeekItem) return;
+
+            event.preventDefault();
+            
+            let index = appState.typeToPeekIndex;
+            if (index < typeToPeekItem.length) {
+                const editor = event.target;
+                const currentVal = editor.value;
+                const revealedPart = typeToPeekItem.substring(0, index + 1);
+                editor.value = revealedPart;
+                appState.content = editor.value;
+                appState.typeToPeekIndex = index + 1;
+            }
+        };
         
         // --- LOGIKA PENGATURAN ---
         const syncTrickNotes = () => {
             const { appMode, notesSwitchTitle, peekTitle } = appState;
             let allNotes = getLocalNotes();
-
-            let nonTrickNotes = allNotes.filter(n => 
-                n.id !== 'trick_note_NotesSwitch' && n.id !== 'trick_note_Peek'
-            );
-
+            let nonTrickNotes = allNotes.filter(n => n.id !== 'trick_note_NotesSwitch' && n.id !== 'trick_note_Peek');
             let trickNote = null;
+
             if (appMode === 'Notes Switch') {
-                const content = generateRandomListContent(appState.startItemsList, false);
-                trickNote = { id: 'trick_note_NotesSwitch', title: notesSwitchTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
+                trickNote = { id: 'trick_note_NotesSwitch', title: notesSwitchTitle, content: generateRandomListContent(appState.startItemsList), createdAt: Date.now(), updatedAt: Date.now() };
             } else if (appMode === 'Peek') {
-                const content = generateRandomListContent(appState.startItemsList, true);
-                trickNote = { id: 'trick_note_Peek', title: peekTitle, content, createdAt: Date.now(), updatedAt: Date.now() };
+                trickNote = { id: 'trick_note_Peek', title: peekTitle, content: generateRandomListContent(appState.startItemsList, true), createdAt: Date.now(), updatedAt: Date.now() };
             }
 
-            const finalNotes = trickNote ? [...nonTrickNotes, trickNote] : nonTrickNotes;
-            
+            const finalNotes = sortNotes(trickNote ? [...nonTrickNotes, trickNote] : nonTrickNotes);
             saveLocalNotes(finalNotes);
-            appState.notes = sortNotes(finalNotes);
+            appState.notes = finalNotes;
         };
         
-        const handleKeywordUpdate = (newKeywordInput) => {
-            const trimmedKeyword = newKeywordInput.trim().toUpperCase();
-            if (!trimmedKeyword || trimmedKeyword === appState.secretKeyword) {
-                showStatus("Kata kunci tidak valid atau sama!", true); return;
-            }
-            if (trimmedKeyword === 'HELP') { 
-                showStatus("Kata kunci 'HELP' tidak diizinkan!", true); 
-                return;
-            }
-            saveSecretKeyword(trimmedKeyword);
-            
-            const updatedNotes = appState.notes.map(n => 
-                n.id === appState.activeNoteId ? {...n, title: trimmedKeyword} : n
-            );
-            saveLocalNotes(updatedNotes);
-
-            setState({ secretKeyword: trimmedKeyword, title: trimmedKeyword, notes: updatedNotes });
-            showStatus("Kata Kunci Rahasia diperbarui.", false);
+        const handleSettingUpdate = (key, value, saveFunction, successMessage) => {
+            const trimmedValue = value.trim();
+            if (!trimmedValue || trimmedValue === appState[key]) return;
+            saveFunction(trimmedValue);
+            setState({ [key]: trimmedValue });
+            if(key.includes('Title')) syncTrickNotes();
+            showStatus(successMessage, false);
         };
-
-        const handleNotesSwitchTitleUpdate = (newTitle) => {
-            const trimmedTitle = newTitle.trim();
-            if (!trimmedTitle || trimmedTitle === appState.notesSwitchTitle) return;
-            saveNotesSwitchTitle(trimmedTitle);
-            setState({ notesSwitchTitle: trimmedTitle });
-            syncTrickNotes();
-            showStatus("Judul Catatan Notes Switch diperbarui.", false);
-        };
-
-        const handlePeekTitleUpdate = (newTitle) => {
-            const trimmedTitle = newTitle.trim();
-            if (!trimmedTitle || trimmedTitle === appState.peekTitle) return;
-            savePeekTitle(trimmedTitle);
-            setState({ peekTitle: trimmedTitle });
-            syncTrickNotes();
-            showStatus("Judul Catatan Peek diperbarui.", false);
-        };
-
+        
         const handleCustomIdUpdate = async (customIdInput) => {
             const trimmedId = customIdInput.trim();
             if (!/^\d{4}$/.test(trimmedId)) {
@@ -480,16 +414,15 @@
             }
             if (trimmedId === appState.customId) return;
 
-            showStatus(`Memeriksa ID ${trimmedId}...`);
-            const isUnique = await isCustomIdUnique(trimmedId);
-            if (!isUnique) {
+            const docRef = doc(db, `dice/${trimmedId}`);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
                 showStatus(`ID ${trimmedId} sudah digunakan.`, true); return;
             }
 
             saveCustomId(trimmedId);
             setState({ customId: trimmedId });
-            await initializeDiceDocument(trimmedId);
-            showStatus(`Custom ID ${trimmedId} berhasil disimpan.`, false);
+            await initializeDiceDocument(trimmedId, true);
             setupPeekListener();
         };
 
@@ -502,31 +435,25 @@
                  showStatus("Daftar Peek maksimal 20 item!", true); return;
             }
 
-            if (listType === 'start') {
-                saveItemsList(START_ITEMS_LIST_KEY, newItems);
-                setState({ startItemsList: newItems });
-            } else {
-                saveItemsList(END_ITEMS_LIST_KEY, newItems);
-                setState({ endItemsList: newItems });
-            }
+            const key = listType === 'start' ? START_ITEMS_LIST_KEY : END_ITEMS_LIST_KEY;
+            const stateKey = listType === 'start' ? 'startItemsList' : 'endItemsList';
+            saveItemsList(key, newItems);
+            setState({ [stateKey]: newItems });
             
             syncTrickNotes();
             showStatus(`Daftar ${listType === 'start' ? 'Awal' : 'Akhir'} diperbarui.`, false);
             setState({});
         };
-
+        
         const handleModeChange = async (newMode) => {
             if (newMode === 'Peek') {
                 if (appState.customId.length !== 4) {
                     showStatus("Mode Peek memerlukan Custom ID 4 digit.", true);
-                    renderApp();
-                    return;
+                    renderApp(); return;
                 }
-                const isActive = await isIdActiveOnFirebase(appState.customId);
-                if (!isActive) {
-                    showStatus("ID Kustom tidak aktif di server. Mode tidak bisa dialihkan.", true);
-                    renderApp();
-                    return;
+                if (!(await isIdActiveOnFirebase(appState.customId))) {
+                    showStatus("ID Kustom tidak aktif. Mode tidak bisa dialihkan.", true);
+                    renderApp(); return;
                 }
             }
             saveAppMode(newMode);
@@ -535,43 +462,35 @@
             setupPeekListener();
             showStatus(`Mode diubah ke: ${newMode}`, false);
         };
-
+        
+        const handlePeekSubModeChange = (newMode) => {
+            savePeekSubMode(newMode);
+            setState({ peekSubMode: newMode });
+            showStatus(`Sub-mode Peek diubah ke: ${newMode}`, false);
+        };
 
         // --- RENDER FUNCTIONS ---
         const renderNoteList = () => {
             const displayNotes = appState.notes.filter(note => !isMatchingSecretKeyword(note.title, appState.secretKeyword));
-            const notesHtml = displayNotes.length === 0 ? `
-                <p class="text-gray-500 text-center mt-10">Belum ada catatan. Tekan tombol '+' untuk membuat satu.</p>
-            ` : displayNotes.map((note) => `
-                <div 
-                    id="note-${note.id}"
-                    class="bg-white p-4 rounded-xl shadow-md cursor-pointer transition duration-200 border-l-4 border-indigo-400 note-item"
-                    onclick="window.handleOpenNote({ id: '${note.id}', title: \`${note.title.replace(/`/g, '\\`')}\`, content: \`${note.content.replace(/`/g, '\\`')}\` })"
-                >
-                    <h2 class="text-lg font-semibold truncate text-black">${note.title || 'Catatan Tanpa Judul'}</h2>
-                    <p class="text-sm text-gray-500 mt-1">${note.content ? (note.content.substring(0, 150).replace(/\n/g, ' ') + (note.content.length > 150 ? '...' : '')) : '...'}</p>
-                    <span class="text-xs text-gray-400 mt-2 block">
-                        Diperbarui: ${new Date(note.updatedAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-                    </span>
-                </div>
-            `).join('');
-
             return `
                 <div class="flex flex-col h-full bg-white p-4 light-theme">
-                    <header class="mb-6 flex-shrink-0">
-                        <h1 class="text-3xl font-bold text-black">Daftar Catatan</h1>
-                    </header>
+                    <header class="mb-6 flex-shrink-0"><h1 class="text-3xl font-bold text-black">Daftar Catatan</h1></header>
                     <div class="flex-grow overflow-y-auto space-y-3 pb-24">
-                        ${notesHtml}
+                        ${displayNotes.length === 0 ? `<p class="text-gray-500 text-center mt-10">Belum ada catatan.</p>` : 
+                        displayNotes.map((note) => `
+                            <div id="note-${note.id}" class="bg-white p-4 rounded-xl shadow-md cursor-pointer transition duration-200 border-l-4 border-indigo-400 note-item"
+                                onclick="window.handleOpenNote({ id: '${note.id}', title: \`${note.title.replace(/`/g, '\\`')}\`, content: \`${note.content.replace(/`/g, '\\`')}\` })">
+                                <h2 class="text-lg font-semibold truncate text-black">${note.title || 'Catatan Tanpa Judul'}</h2>
+                                <p class="text-sm text-gray-500 mt-1">${note.content ? (note.content.substring(0, 150).replace(/\n/g, ' ') + (note.content.length > 150 ? '...' : '')) : '...'}</p>
+                                <span class="text-xs text-gray-400 mt-2 block">
+                                    Diperbarui: ${new Date(note.updatedAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                </span>
+                            </div>`).join('')}
                     </div>
-                    <button
-                        onclick="window.handleNewNote()"
-                        class="absolute bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition transform hover:scale-105 active:scale-95"
-                    >
+                    <button onclick="window.handleNewNote()" class="absolute bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition transform hover:scale-105 active:scale-95">
                         ${Icons.Plus.replace('dark-icon-filter', '')}
                     </button>
-                </div>
-            `;
+                </div>`;
         };
         
         const renderNoteEditor = () => {
@@ -579,210 +498,120 @@
             const isPeekNote = appState.appMode === 'Peek' && appState.title === appState.peekTitle;
             const isTrickNoteActive = isNotesSwitchNote || isPeekNote;
 
-            const deleteButton = (appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `
-                <button onclick="window.handleDeleteNote()" class="p-2 text-red-500 transition rounded-full hover:bg-red-100">${Icons.Trash2}</button>
-            ` : '';
-            const saveButtonClass = appState.isSaving ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-600';
-
             let extraAttributes = '';
-            if (isNotesSwitchNote) {
-                extraAttributes = `onclick="window.handleNotesSwitchTrigger()"`;
-            } else if (isPeekNote) {
-                extraAttributes = `onmousedown="window.startLongPress(event)" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress(event)" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
+            if (isNotesSwitchNote) extraAttributes = `onclick="window.handleNotesSwitchTrigger()"`;
+            else if (isPeekNote && appState.peekSubMode === 'Hold to Peek') {
+                extraAttributes = `onmousedown="window.startLongPress()" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress()" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
             }
-
-            const textAreaClass = `flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg ${isPeekNote ? 'no-select' : ''}`;
 
             return `
                 <div class="flex flex-col h-full bg-white p-4 light-theme">
                     <header class="flex justify-between items-center mb-4 flex-shrink-0">
-                        <button onclick="window.handleBackToList()" class="p-2 text-gray-700 transition rounded-full hover:bg-gray-100">${Icons.ArrowLeft}</button>
+                        <button onclick="window.handleBackToList()" class="p-2 text-gray-700 rounded-full hover:bg-gray-100">${Icons.ArrowLeft}</button>
                         <div class="flex space-x-2">
-                            ${deleteButton}
-                            <button onclick="window.handleSaveNote(false)" ${appState.isSaving ? 'disabled' : ''} class="p-2 rounded-full text-white transition shadow-md ${saveButtonClass}">
+                            ${(appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `<button onclick="window.handleDeleteNote()" class="p-2 text-red-500 rounded-full hover:bg-red-100">${Icons.Trash2}</button>` : ''}
+                            <button onclick="window.handleSaveNote()" class="p-2 rounded-full text-white transition shadow-md ${appState.isSaving ? 'bg-gray-300' : 'bg-indigo-500 hover:bg-indigo-600'}">
                                 ${appState.isSaving ? Icons.Loader2.replace('class="', 'class="animate-spin ') : Icons.Save.replace('dark-icon-filter', '')}
                             </button>
                         </div>
                     </header>
-                    <input
-                        id="title-editor" type="text" value="${appState.title}" oninput="window.handleLiveInput('title', this.value)"
-                        placeholder="Judul Catatan" class="text-2xl font-semibold p-2 border-b-2 border-gray-100 mb-4 focus:border-indigo-500 outline-none w-full flex-shrink-0"
-                        ${isTrickNoteActive ? 'readonly' : ''}
-                    />
-                    <textarea
-                        id="content-editor" oninput="window.handleLiveInput('content', this.value)"
-                        placeholder="Isi catatan Anda di sini..."
-                        class="${textAreaClass}"
-                        ${extraAttributes}
-                        ${isPeekNote ? 'readonly' : ''}
-                    >${appState.content}</textarea>
-                </div>
-            `;
+                    <input id="title-editor" type="text" value="${appState.title}" oninput="window.handleLiveInput('title', this.value)"
+                        placeholder="Judul Catatan" class="text-2xl font-semibold p-2 border-b-2 border-gray-100 mb-4 focus:border-indigo-500 outline-none w-full" ${isTrickNoteActive ? 'readonly' : ''} />
+                    <textarea id="content-editor" oninput="window.handleLiveInput('content', this.value)" onkeydown="window.handleTypeToPeek(event)"
+                        placeholder="Isi catatan..." class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
+                        ${extraAttributes} ${isTrickNoteActive || (appState.appMode === 'Peek' && appState.peekSubMode === 'Hold to Peek') ? 'readonly' : ''}>${appState.content}</textarea>
+                </div>`;
         };
 
         const renderSecretSettingsPanel = () => {
-            const { secretKeyword, customId, appMode, startItemsList, endItemsList, notesSwitchTitle, peekTitle } = appState;
+            const { appMode, peekSubMode, secretKeyword, customId, notesSwitchTitle, peekTitle, startItemsList, endItemsList } = appState;
             
-            let titleCustomizationHtml = '';
+            let modeSpecificSettings = '';
             if (appMode === 'Notes Switch') {
-                titleCustomizationHtml = `
+                modeSpecificSettings = `
                     <div>
                         <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Notes Switch:</p>
-                        <div class="flex"><input id="notes-switch-title-input" type="text" value="${notesSwitchTitle}" class="flex-grow bg-gray-700 p-3 rounded-lg" onblur="handleNotesSwitchTitleUpdate(this.value)"></div>
+                        <input type="text" value="${notesSwitchTitle}" class="w-full bg-gray-700 p-3 rounded-lg" 
+                            onblur="handleSettingUpdate('notesSwitchTitle', this.value, saveNotesSwitchTitle, 'Judul Notes Switch diperbarui.')">
                     </div>`;
             } else if (appMode === 'Peek') {
-                 titleCustomizationHtml = `
+                modeSpecificSettings = `
                     <div>
                         <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Peek:</p>
-                        <div class="flex"><input id="peek-title-input" type="text" value="${peekTitle}" class="flex-grow bg-gray-700 p-3 rounded-lg" onblur="handlePeekTitleUpdate(this.value)"></div>
+                        <input type="text" value="${peekTitle}" class="w-full bg-gray-700 p-3 rounded-lg"
+                            onblur="handleSettingUpdate('peekTitle', this.value, savePeekTitle, 'Judul Peek diperbarui.')">
+                    </div>
+                    <div class="mt-4">
+                         <p class="text-sm font-light text-gray-400 mb-2">Sub-mode Peek:</p>
+                         <div class="flex flex-wrap gap-2">${['Hold to Peek', 'Type to Peek'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-600 rounded-lg ${peekSubMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="peekSubMode" value="${mode}" ${peekSubMode === mode ? 'checked' : ''} onchange="handlePeekSubModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
                     </div>`;
             }
 
-
-            const ItemListForm = (type, list) => `
-                <div class="bg-gray-700 p-4 rounded-lg shadow-inner flex flex-col mt-4">
-                    <h3 class="text-md font-bold text-red-300 mb-2">Daftar ${type === 'start' ? 'Awal' : 'Akhir'}</h3>
-                    <p class="text-xs font-light text-gray-400 mb-2">Total item: ${list.length}</p>
-                    <textarea id="${type}-list-input" rows="8" class="bg-gray-800 text-gray-200 p-3 rounded-lg resize-none outline-none focus:ring-2 focus:ring-red-500 font-mono text-sm">${list.join('\n')}</textarea>
-                    <button onclick="handleItemsListUpdate('${type}', document.getElementById('${type}-list-input').value)" class="mt-3 p-2 bg-indigo-500 rounded-lg hover:bg-indigo-600">Simpan Daftar</button>
-                </div>`;
-
             return `
                 <div class="flex flex-col h-full bg-gray-900 text-white p-4 font-sans secret-panel-container">
-                    <header class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3 flex-shrink-0">
-                        <button onclick="handleBackToList()" class="p-2 text-gray-700 rounded-full hover:bg-gray-800">${Icons.ArrowLeft.replace('class="', 'class="dark-icon-filter ')}</button>
-                        <h1 class="text-xl font-mono tracking-widest text-red-500 flex items-center">${Icons.Settings} PENGATURAN</h1>
-                        <div class="w-10"></div>
-                    </header>
-
+                    <header class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3"><button onclick="handleBackToList()" class="p-2 rounded-full hover:bg-gray-800">${Icons.ArrowLeft.replace('class="', 'class="dark-icon-filter ')}</button><h1 class="text-xl font-mono tracking-widest text-red-500">${Icons.Settings} PENGATURAN</h1><div class="w-10"></div></header>
                     <div class="flex-grow overflow-y-auto space-y-6 pb-6">
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl space-y-4">
-                            <h2 class="text-lg font-bold text-indigo-400 flex items-center">${Icons.Unlock} Akses Rahasia</h2>
-                            <div>
-                                <p class="text-sm font-light text-gray-400 mb-2">Kata Kunci Panel:</p>
-                                <div class="flex space-x-2"><input id="keyword-input" type="text" value="${secretKeyword}" class="flex-grow bg-gray-700 p-3 rounded-lg font-mono uppercase" onblur="handleKeywordUpdate(this.value)"></div>
-                            </div>
-                            <div>
-                                <p class="text-sm font-light text-gray-400 mb-2">Custom ID Firebase (4 Digit):</p>
-                                <div class="flex space-x-2 items-center"><input id="custom-id-input" type="text" value="${customId}" class="w-24 bg-gray-700 p-3 rounded-lg font-mono" onblur="handleCustomIdUpdate(this.value)" maxlength="4"><span class="text-sm text-gray-400">ID Aktif: ${customId || "None"}</span></div>
-                            </div>
+                            <h2 class="text-lg font-bold text-indigo-400">${Icons.Unlock} Akses Rahasia</h2>
+                            <div><p class="text-sm text-gray-400 mb-2">Kata Kunci:</p><input type="text" value="${secretKeyword}" class="w-full bg-gray-700 p-3 rounded-lg font-mono uppercase" onblur="handleSettingUpdate('secretKeyword', this.value.toUpperCase(), saveSecretKeyword, 'Kata Kunci diperbarui.')"></div>
+                            <div><p class="text-sm text-gray-400 mb-2">Custom ID (4 Digit):</p><input type="text" value="${customId}" class="w-24 bg-gray-700 p-3 rounded-lg font-mono" onblur="handleCustomIdUpdate(this.value)" maxlength="4"></div>
                         </div>
-
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
-                            <h2 class="text-lg font-bold text-indigo-400 mb-3 flex items-center">${Icons.Zap} Mode Operasi</h2>
+                            <h2 class="text-lg font-bold text-indigo-400 mb-3">${Icons.Zap} Mode Operasi</h2>
                             <div class="flex flex-wrap gap-2">${['Notes Switch', 'Peek', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-700 rounded-lg ${appMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="handleModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
-                            
-                            <div class="mt-6 space-y-4">
-                                ${titleCustomizationHtml ? `<h3 class="text-md font-semibold text-red-300">Kustomisasi Judul Catatan</h3>` : ''}
-                                ${titleCustomizationHtml}
-                            </div>
+                            <div class="mt-6 space-y-4">${modeSpecificSettings ? `<h3 class="text-md font-semibold text-red-300">Kustomisasi Mode Aktif</h3>${modeSpecificSettings}` : ''}</div>
                         </div>
-                        
                         <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
-                           <h2 class="text-lg font-bold text-indigo-400 mb-2 flex items-center">${Icons.Edit} Kustomisasi Daftar</h2>
-                           ${ItemListForm('start', startItemsList)}
-                           ${appMode === 'Notes Switch' ? ItemListForm('end', endItemsList) : ''}
+                           <h2 class="text-lg font-bold text-indigo-400 mb-2">${Icons.Edit} Kustomisasi Daftar</h2>
+                           <textarea id="start-list-input" rows="8" class="bg-gray-700 text-gray-200 p-3 rounded-lg resize-none w-full font-mono text-sm">${startItemsList.join('\n')}</textarea>
+                           <button onclick="handleItemsListUpdate('start', document.getElementById('start-list-input').value)" class="mt-3 p-2 w-full bg-indigo-500 rounded-lg">Simpan Daftar Awal</button>
+                           ${appMode === 'Notes Switch' ? `<textarea id="end-list-input" rows="8" class="mt-4 bg-gray-700 text-gray-200 p-3 rounded-lg resize-none w-full font-mono text-sm">${endItemsList.join('\n')}</textarea><button onclick="handleItemsListUpdate('end', document.getElementById('end-list-input').value)" class="mt-3 p-2 w-full bg-indigo-500 rounded-lg">Simpan Daftar Akhir</button>` : ''}
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
         };
         
-        const renderHelpModal = () => {
-            if (!appState.showHelpModal) return '';
-            return `
-                <div id="help-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="hideHelpModal()">
-                    <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full text-gray-800" onclick="event.stopPropagation()">
-                        <h2 class="text-2xl font-bold mb-4 text-indigo-600">Informasi Bantuan</h2>
-                        <p class="mb-4">Jika Anda lupa kata kunci untuk mengakses panel pengaturan, berikut adalah informasi yang Anda butuhkan:</p>
-                        <div class="space-y-3">
-                            <div class="bg-gray-100 p-3 rounded-md">
-                                <p class="text-sm text-gray-500">Kata Kunci Panel:</p>
-                                <p class="text-lg font-mono font-bold text-gray-900">${appState.secretKeyword}</p>
-                            </div>
-                            <div class="bg-gray-100 p-3 rounded-md">
-                                <p class="text-sm text-gray-500">Custom ID (jika ada):</p>
-                                <p class="text-lg font-mono font-bold text-gray-900">${appState.customId || 'Belum diatur'}</p>
-                            </div>
-                        </div>
-                        <button onclick="hideHelpModal()" class="mt-6 w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition">Tutup</button>
-                    </div>
-                </div>
-            `;
-        };
-
+        const renderHelpModal = () => !appState.showHelpModal ? '' : `<div id="help-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="hideHelpModal()"><div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full text-gray-800" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4 text-indigo-600">Informasi Bantuan</h2><p class="mb-4">Kata kunci panel rahasia Anda adalah:</p><div class="bg-gray-100 p-3 rounded-md"><p class="text-lg font-mono font-bold text-gray-900">${appState.secretKeyword}</p></div><button onclick="hideHelpModal()" class="mt-6 w-full bg-indigo-500 text-white py-2 rounded-lg">Tutup</button></div></div>`;
         
         // --- FIREBASE LISTENER ---
         const setupPeekListener = () => {
             if (unsubscribeListener) unsubscribeListener();
-            unsubscribeListener = null;
+            if (appState.appMode !== 'Peek' || !db || !/^\d{4}$/.test(appState.customId)) return;
 
-            const { appMode, customId } = appState;
-            if (appMode !== 'Peek' || !db || !customId || !/^\d{4}$/.test(customId)) {
-                setState({ isListening: false }); return; 
-            }
-
-            const docPath = `dice/${customId}`;
-            setState({ isListening: true });
-
-            unsubscribeListener = onSnapshot(doc(db, docPath), (docSnapshot) => {
+            unsubscribeListener = onSnapshot(doc(db, `dice/${appState.customId}`), (docSnapshot) => {
                 if (docSnapshot.exists()) {
                     const diceNumber = docSnapshot.data()?.currentDiceNumber;
-                    if (typeof diceNumber !== 'number') return;
                     const itemIndex = diceNumber - 1;
                     const list = appState.startItemsList; 
                     if (itemIndex >= 0 && itemIndex < list.length) {
-                        appState.rememberedItem = list[itemIndex];
-                    } else {
-                        appState.rememberedItem = `[Invalid]`;
+                        const newItem = list[itemIndex];
+                        appState.rememberedItem = newItem;
+                        appState.typeToPeekItem = newItem;
+                        appState.typeToPeekIndex = 0;
                     }
                 }
-            }, (error) => {
-                console.error("Firestore Error:", error);
-                setState({ isListening: false });
             });
         };
 
         // --- INIT APP ---
         const initApp = async () => {
             try {
-                if (!auth) {
-                    const app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                    else await signInAnonymously(auth);
-                }
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                else await signInAnonymously(auth);
             } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
 
-            const initialSettings = {
-                secretKeyword: getSecretKeyword(),
-                appMode: getAppMode(),
+            Object.assign(appState, {
+                secretKeyword: getSecretKeyword(), appMode: getAppMode(), peekSubMode: getPeekSubMode(),
                 startItemsList: getItemsList(START_ITEMS_LIST_KEY, DEFAULT_START_ITEMS_20),
                 endItemsList: getItemsList(END_ITEMS_LIST_KEY, DEFAULT_END_ITEMS_19),
-                customId: getCustomId(),
-                notesSwitchTitle: getNotesSwitchTitle(),
-                peekTitle: getPeekTitle(),
-            };
-            Object.assign(appState, initialSettings);
-
-            if (appState.appMode === 'Peek') {
-                const idIsValid = appState.customId && /^\d{4}$/.test(appState.customId);
-                let isServerActive = false;
-                if(idIsValid) {
-                    isServerActive = await isIdActiveOnFirebase(appState.customId);
-                }
-
-                if (!isServerActive) {
-                    showStatus("ID Kustom tidak valid, mode dialihkan.", true);
-                    appState.appMode = 'Notes Switch';
-                    saveAppMode('Notes Switch');
-                }
-            }
+                customId: getCustomId(), notesSwitchTitle: getNotesSwitchTitle(), peekTitle: getPeekTitle(),
+            });
 
             syncTrickNotes();
-            
-            setState({ isLoading: false });
+            setState({ isLoading: false, notes: getLocalNotes() });
             setupPeekListener();
         };
 
@@ -792,20 +621,10 @@
             const statusContainer = document.getElementById('status-container');
             
             if (!appContentDiv || !modalContainer || !statusContainer) return;
+            if (appState.isLoading) return;
             
-            if (appState.isLoading) {
-                 appContentDiv.innerHTML = `<div class="flex items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
-                 return;
-            }
-
             const isSecretNote = appState.activeNoteId && isMatchingSecretKeyword(appState.title, appState.secretKeyword);
-            
-            if (appState.activeNoteId !== null) {
-                appContentDiv.innerHTML = isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor();
-            } else {
-                appContentDiv.innerHTML = renderNoteList();
-            }
-
+            appContentDiv.innerHTML = appState.activeNoteId !== null ? (isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor()) : renderNoteList();
             modalContainer.innerHTML = renderHelpModal();
 
             statusContainer.innerHTML = ''; 
@@ -817,22 +636,7 @@
                 statusContainer.appendChild(statusElement);
             }
             
-            window.handleOpenNote = handleOpenNote;
-            window.handleBackToList = handleBackToList;
-            window.handleNewNote = handleNewNote;
-            window.handleSaveNote = handleSaveNote;
-            window.handleDeleteNote = handleDeleteNote;
-            window.handleNotesSwitchTrigger = handleNotesSwitchTrigger;
-            window.handleModeChange = handleModeChange;
-            window.handleLiveInput = handleLiveInput;
-            window.startLongPress = startLongPress;
-            window.cancelLongPress = cancelLongPress;
-            window.handleKeywordUpdate = handleKeywordUpdate;
-            window.handleCustomIdUpdate = handleCustomIdUpdate;
-            window.handleItemsListUpdate = handleItemsListUpdate;
-            window.hideHelpModal = hideHelpModal;
-            window.handleNotesSwitchTitleUpdate = handleNotesSwitchTitleUpdate;
-            window.handlePeekTitleUpdate = handlePeekTitleUpdate;
+            Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleNotesSwitchTrigger, handleModeChange, handlePeekSubModeChange, handleLiveInput, startLongPress, cancelLongPress, handleTypeToPeek, handleSettingUpdate, handleCustomIdUpdate, handleItemsListUpdate, hideHelpModal });
         };
 
         window.addEventListener('load', () => setTimeout(initApp, 300));
