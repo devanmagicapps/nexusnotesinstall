@@ -2,71 +2,77 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <!-- Meta tag diperbarui untuk menonaktifkan zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nexus Notes</title>
 
-    <!-- PWA Tags for Android -->
-    <meta name="theme-color" content="#ffffff">
+    <!-- PWA Tags -->
+    <meta name="theme-color" content="#FFFBEA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Nexus Notes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nexus Notes">
-
-    <!-- Link to Manifest and Service Worker Registration -->
     <link rel="manifest" href="manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js').then(registration => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, err => {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-            });
-        }
-    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-yellow': {
+                            light: '#FFFBEA',
+                            DEFAULT: '#FBBF24',
+                            dark: '#D97706',
+                        },
+                        'brand-surface': '#F8FAFC',
+                        'brand-dark': {
+                            'bg': '#1E1E1E',
+                            'surface': '#2C2C2C',
+                            'text': '#E0E0E0',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        /* [ARSITEKTUR UI BARU DENGAN FLOATING FRAME] */
         html, body {
-            height: 100%; /* Fondasi: Buat html dan body mengisi seluruh tinggi */
+            height: 100%;
             width: 100%;
-            overflow: hidden; /* Garis pertahanan pertama */
+            overflow: hidden;
             margin: 0;
             padding: 0;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #app {
-            height: 100vh; /* Kunci Utama: Buat #app setinggi viewport, tidak bisa lebih */
+            height: 100vh;
             width: 100vw;
-            overflow: hidden; /* Sangkar utama: semua yang meluap dari #app akan disembunyikan */
+            overflow: hidden;
             position: relative;
+            background-color: var(--bg-color, #F8FAFC);
         }
 
-        #app-content {
-            height: 100%;
-            width: 100%;
-        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .dark-theme ::-webkit-scrollbar-track { background: #2C2C2C; }
+        .dark-theme ::-webkit-scrollbar-thumb { background: #555; }
 
-        /* Custom scrollbar untuk tampilan dark/minimalis */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        .secret-panel-container ::-webkit-scrollbar-track { background: #0f172a; }
-        .light-theme ::-webkit-scrollbar-track { background: #e5e7eb; }
-        .light-theme ::-webkit-scrollbar-thumb { background: #9ca3af; }
-
-        /* Filter untuk mengubah ikon hitam menjadi putih di mode gelap */
-        .dark-icon-filter {
-            filter: invert(100%) sepia(0%) saturate(7500%) hue-rotate(180deg) brightness(105%) contrast(101%);
-        }
-
-        /* Animasi untuk notifikasi floating */
+        /* Animasi Notifikasi */
         @keyframes fadeInOut {
             0%, 100% { opacity: 0; transform: translateY(20px); }
             10%, 90% { opacity: 1; transform: translateY(0); }
@@ -74,56 +80,43 @@
         .animate-fade-in-out {
             animation: fadeInOut 4s ease-in-out forwards;
         }
-
-        /* Class untuk mencegah seleksi teks */
-        .no-select {
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10+ and Edge */
-            user-select: none; /* Standard syntax */
-        }
     </style>
 </head>
-<body class="bg-white">
+<body class="bg-brand-surface">
 
     <div id="app">
-        <div id="app-content">
-            <!-- Konten aplikasi utama akan dirender di sini -->
+        <!-- Konten aplikasi akan dirender di sini, dimulai dengan loader -->
+        <div id="app-content" class="h-full w-full">
             <div class="flex items-center justify-center h-full">
-                <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin h-8 w-8 text-brand-yellow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
         </div>
-        <!-- Kontainer untuk modal bantuan -->
+        <!-- Kontainer untuk notifikasi dan modal -->
         <div id="modal-container"></div>
-        <!-- Kontainer untuk notifikasi floating -->
         <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
     </div>
 
-    <!-- Firebase CDN Imports -->
+    <!-- Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Atur level log Firestore
         setLogLevel('Debug');
 
-        // --- DEFINISI IKON (menggunakan URL Icons8) ---
+        // --- IKON SVG MATERIAL DESIGN ---
         const Icons = {
-            Plus: `<img src="https://img.icons8.com/ios-glyphs/30/plus-math.png" alt="New Note" class="w-6 h-6 dark-icon-filter"/>`,
-            Save: `<img src="https://img.icons8.com/material-outlined/30/save.png" alt="Save" class="w-6 h-6 dark-icon-filter"/>`,
-            Trash2: `<img src="https://img.icons8.com/ios-glyphs/30/trash.png" alt="Delete" class="w-6 h-6"/>`,
-            ArrowLeft: `<img src="https://img.icons8.com/ios-glyphs/30/left.png" alt="Back" class="w-6 h-6"/>`,
-            Loader2: `<img src="https://img.icons8.com/ios-glyphs/30/loading-circle.png" alt="Loading" class="w-6 h-6 dark-icon-filter"/>`,
-            Lock: `<img src="https://img.icons8.com/ios-glyphs/30/lock.png" alt="Lock" class="w-5 h-5 dark-icon-filter"/>`,
-            Unlock: `<img src="https://img.icons8.com/ios-glyphs/30/unlock.png" alt="Unlock" class="w-5 h-5 dark-icon-filter"/>`,
-            Settings: `<img src="https://img.icons8.com/ios-glyphs/30/settings.png" alt="Settings" class="w-5 h-5 dark-icon-filter"/>`,
-            Zap: `<img src="https://img.icons8.com/ios-glyphs/30/flash-on.png" alt="Mode" class="w-5 h-5 dark-icon-filter"/>`,
-            Edit: `<img src="https://img.icons8.com/ios-glyphs/30/edit.png" alt="Edit" class="w-5 h-5 dark-icon-filter"/>`,
-            Hash: `<img src="https://img.icons8.com/ios-glyphs/30/hashtag.png" alt="ID" class="w-5 h-5 dark-icon-filter"/>`,
-            Check: `<img src="https://img.icons8.com/ios-glyphs/30/checked-2.png" alt="Check ID" class="w-5 h-5 dark-icon-filter"/>`
+            Plus: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`,
+            Save: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>`,
+            Trash: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+            ArrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`,
+            Loader: `<svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`,
+            Settings: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>`,
+            Zap: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>`,
+            Edit: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,
         };
 
         // --- KONFIGURASI FIREBASE ---
@@ -140,12 +133,10 @@
         const firebaseConfig = JSON.parse(firebaseConfigStr);
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
-        let db;
-        let auth;
-        let unsubscribeListener = null;
+        let db, auth, unsubscribeListener = null;
 
-        // --- KONSTANTA GLOBAL OFFLINE ---
-        const STORAGE_KEY = 'minimalist_offline_notes';
+        // --- KONSTANTA & STATE GLOBAL ---
+        const STORAGE_KEY = 'nexus_notes_data';
         const SECRET_KEYWORD_KEY = 'app_secret_keyword'; 
         const APP_MODE_KEY = 'app_current_mode';
         const PEEK_SUB_MODE_KEY = 'app_peek_sub_mode';
@@ -159,71 +150,25 @@
         const DEFAULT_END_ITEMS_19 = ["Gelang", "Magnet", "Peniti", "Sandal", "Lampu", "Kabel", "Payung", "Buku", "Pulpen", "Meja", "Kursi", "Pintu", "Jendela", "Sepatu", "Rokok", "Korek", "Kertas", "Amplop", "Gunting"];
         const DEFAULT_TRICK_TITLE = "List benda random";
 
-        // --- GLOBAL STATE ---
         let appState = {
-            notes: [],
-            activeNoteId: null,
-            title: '',
-            content: '',
-            isLoading: true,
-            isSaving: false,
-            secretKeyword: 'KUNCI',
-            appMode: 'Notes Switch',
-            peekSubMode: 'Hold to Peek',
-            startItemsList: DEFAULT_START_ITEMS_20,
-            endItemsList: DEFAULT_END_ITEMS_19,
-            customId: '',
-            notesSwitchTitle: DEFAULT_TRICK_TITLE,
-            peekTitle: DEFAULT_TRICK_TITLE,
-            rememberedItem: null,
-            typeToPeekItem: null,
-            typeToPeekIndex: 0,
-            isListening: false,
-            statusMessage: null, 
-            longPressTimeout: null,
-            originalTrickTitle: '',
-            showHelpModal: false,
+            notes: [], activeNoteId: null, title: '', content: '', isLoading: true, isSaving: false,
+            secretKeyword: 'KUNCI', appMode: 'Notes Switch', peekSubMode: 'Hold to Peek',
+            startItemsList: DEFAULT_START_ITEMS_20, endItemsList: DEFAULT_END_ITEMS_19,
+            customId: '', notesSwitchTitle: DEFAULT_TRICK_TITLE, peekTitle: DEFAULT_TRICK_TITLE,
+            rememberedItem: null, typeToPeekItem: null, typeToPeekIndex: 0, isListening: false,
+            statusMessage: null, longPressTimeout: null, originalTrickTitle: '', showHelpModal: false,
         };
 
-        // --- FUNGSI UTILITY LOCAL STORAGE & UMUM ---
-        const getLocalNotes = () => {
-            try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                return stored ? JSON.parse(stored) : [];
-            } catch (e) { console.error("Gagal memuat catatan dari Local Storage:", e); return []; }
+        // --- FUNGSI UTILITY ---
+        const getLocalData = (key, fallback) => {
+            try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback; } catch (e) { console.error(`Gagal memuat data dari ${key}:`, e); return fallback; }
         };
-
-        const saveLocalNotes = (notes) => {
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); } catch (e) { console.error("Gagal menyimpan catatan ke Local Storage:", e); }
+        const saveLocalData = (key, data) => {
+            try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { console.error(`Gagal menyimpan data ke ${key}:`, e); }
         };
-
-        const getSecretKeyword = () => localStorage.getItem(SECRET_KEYWORD_KEY) || 'KUNCI';
-        const saveSecretKeyword = (keyword) => localStorage.setItem(SECRET_KEYWORD_KEY, keyword.toUpperCase().trim());
+        const getSetting = (key, fallback) => localStorage.getItem(key) || fallback;
+        const saveSetting = (key, value) => localStorage.setItem(key, value);
         
-        const getNotesSwitchTitle = () => localStorage.getItem(NOTES_SWITCH_TITLE_KEY) || DEFAULT_TRICK_TITLE;
-        const saveNotesSwitchTitle = (title) => localStorage.setItem(NOTES_SWITCH_TITLE_KEY, title.trim());
-
-        const getPeekTitle = () => localStorage.getItem(PEEK_TITLE_KEY) || DEFAULT_TRICK_TITLE;
-        const savePeekTitle = (title) => localStorage.setItem(PEEK_TITLE_KEY, title.trim());
-
-        const getCustomId = () => localStorage.getItem(CUSTOM_ID_KEY) || '';
-        const saveCustomId = (id) => localStorage.setItem(CUSTOM_ID_KEY, id.trim());
-
-        const getAppMode = () => localStorage.getItem(APP_MODE_KEY) || 'Notes Switch';
-        const saveAppMode = (mode) => localStorage.setItem(APP_MODE_KEY, mode);
-
-        const getPeekSubMode = () => localStorage.getItem(PEEK_SUB_MODE_KEY) || 'Hold to Peek';
-        const savePeekSubMode = (mode) => localStorage.setItem(PEEK_SUB_MODE_KEY, mode);
-        
-        const getItemsList = (key, defaultList) => {
-            try {
-                const stored = localStorage.getItem(key);
-                const parsed = stored ? JSON.parse(stored) : null;
-                return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultList; 
-            } catch (e) { console.error(`Gagal memuat daftar dari ${key}:`, e); return defaultList; }
-        };
-
-        const saveItemsList = (key, list) => localStorage.setItem(key, JSON.stringify(list));
         const sortNotes = (notesArray) => [...notesArray].sort((a, b) => b.updatedAt - a.updatedAt);
         const isMatchingSecretKeyword = (title, keyword) => (title && keyword) ? title.toUpperCase().trim() === keyword.toUpperCase().trim() : false;
         
@@ -237,24 +182,15 @@
         const initializeDiceDocument = async (id, showSuccess = false) => {
             if (!db || !/^\d{4}$/.test(id)) return;
             const docRef = doc(db, `dice/${id}`);
-            try {
-                await setDoc(docRef, { currentDiceNumber: 1, initializedAt: Date.now() }, { merge: false });
-                if (showSuccess) showStatus(`ID Unik ${id} berhasil dibuat dan diaktifkan!`, false);
-            } catch (e) { console.error("Gagal membuat dokumen Firestore dice:", e); showStatus(`Gagal membuat ID: ${e.message}`, true); }
+            try { await setDoc(docRef, { currentDiceNumber: 1, initializedAt: Date.now() }, { merge: false }); if (showSuccess) showStatus(`ID Unik ${id} berhasil dibuat dan diaktifkan!`); } catch (e) { console.error("Gagal membuat dokumen Firestore:", e); showStatus(`Gagal membuat ID: ${e.message}`, true); }
         };
-
         const isIdActiveOnFirebase = async (id) => {
             if (!db || !/^\d{4}$/.test(id)) return false;
-            const docRef = doc(db, `dice/${id}`);
-            try { return (await getDoc(docRef)).exists(); } catch (e) { console.error("Gagal memeriksa status ID di Firebase:", e); return false; }
+            try { return (await getDoc(doc(db, `dice/${id}`))).exists(); } catch (e) { console.error("Gagal memeriksa status ID:", e); return false; }
         };
 
-        // --- STATE MANAGEMENT DAN RENDER UTAMA ---
-        const setState = (newState) => {
-            Object.assign(appState, newState);
-            renderApp();
-        };
-
+        // --- STATE MANAGEMENT ---
+        const setState = (newState) => { Object.assign(appState, newState); renderApp(); };
         const showStatus = (message, isError = false) => {
             setState({ statusMessage: { message, isError } });
             setTimeout(() => setState({ statusMessage: null }), 3900); 
@@ -264,46 +200,31 @@
             appState[key] = value; 
             if (key === 'title') {
                 const trimmedTitle = value.trim().toUpperCase();
-                if (trimmedTitle === appState.secretKeyword) {
-                    checkSecretTitleTrigger(trimmedTitle);
-                } else if (value.trim().toLowerCase() === 'help' && appState.activeNoteId === 'new') {
-                    showHelpModal();
-                }
+                if (trimmedTitle === appState.secretKeyword) { checkSecretTitleTrigger(trimmedTitle); }
+                else if (value.trim().toLowerCase() === 'help' && appState.activeNoteId === 'new') { showHelpModal(); }
             }
         };
 
         const checkSecretTitleTrigger = (secretTitle) => {
             const existingSecretNote = appState.notes.find(n => isMatchingSecretKeyword(n.title, secretTitle));
-            if (existingSecretNote) {
-                setState({ activeNoteId: existingSecretNote.id, title: existingSecretNote.title, content: existingSecretNote.content });
-            } else {
-                const newNoteId = Date.now().toString();
-                const newSecretNote = { id: newNoteId, title: secretTitle, content: '', createdAt: Date.now(), updatedAt: Date.now() };
-                const updatedNotes = [newSecretNote, ...appState.notes.filter(note => note.id !== appState.activeNoteId)];
-                saveLocalNotes(updatedNotes);
-                setState({ notes: updatedNotes, activeNoteId: newNoteId, title: newSecretNote.title, content: newSecretNote.content });
-            }
+            const noteData = existingSecretNote ? { activeNoteId: existingSecretNote.id, title: existingSecretNote.title, content: existingSecretNote.content } : { activeNoteId: 'secret-panel' };
+            setState(noteData);
         };
 
-        // --- HANDLER MODAL BANTUAN ---
+        // --- HANDLER ---
         const showHelpModal = () => setState({ showHelpModal: true });
         const hideHelpModal = () => {
             const shouldClear = appState.activeNoteId === 'new' && appState.title.trim().toLowerCase() === 'help';
             setState({ showHelpModal: false, ...(shouldClear && { activeNoteId: null, title: '', content: '' }) });
         };
-
-        // --- HANDLER UTAMA ---
         const handleOpenNote = (note) => setState({ activeNoteId: note.id, title: note.title, content: note.content });
         const handleBackToList = () => setState({ activeNoteId: null, title: '', content: '' });
-        
-        const handleNewNote = () => {
-            setState({ activeNoteId: 'new', title: '', content: '', typeToPeekIndex: 0 });
-        };
+        const handleNewNote = () => setState({ activeNoteId: 'new', title: '', content: '', typeToPeekIndex: 0 });
 
         const handleSaveNote = () => {
             const titleEditor = document.getElementById('title-editor');
             const contentEditor = document.getElementById('content-editor');
-            const noteTitle = (titleEditor?.value.trim() || appState.title.trim()) || 'Catatan Tanpa Judul';
+            const noteTitle = (titleEditor?.value.trim() || appState.title.trim()) || 'Catatan Baru';
             const noteContent = contentEditor?.value || appState.content;
 
             if (!noteTitle && !noteContent) { handleBackToList(); return; }
@@ -311,37 +232,35 @@
             setState({ isSaving: true });
             const timestamp = Date.now();
             let updatedNotes;
-            let newNoteId = appState.activeNoteId;
+            let noteIdToOpen = appState.activeNoteId;
 
             if (appState.activeNoteId && appState.activeNoteId !== 'new') {
                 updatedNotes = appState.notes.map(note => note.id === appState.activeNoteId ? { ...note, title: noteTitle, content: noteContent, updatedAt: timestamp } : note);
             } else {
-                newNoteId = timestamp.toString();
-                updatedNotes = [{ id: newNoteId, title: noteTitle, content: noteContent, createdAt: timestamp, updatedAt: timestamp }, ...appState.notes];
+                noteIdToOpen = timestamp.toString();
+                updatedNotes = [{ id: noteIdToOpen, title: noteTitle, content: noteContent, createdAt: timestamp, updatedAt: timestamp }, ...appState.notes];
             }
             
-            const finalNotes = sortNotes(updatedNotes);
-            saveLocalNotes(finalNotes);
-            setState({ notes: finalNotes, isSaving: false, activeNoteId: isMatchingSecretKeyword(noteTitle, appState.secretKeyword) ? newNoteId : appState.activeNoteId });
-            
-            if (!isMatchingSecretKeyword(noteTitle, appState.secretKeyword)) { handleBackToList(); }
+            saveLocalData(STORAGE_KEY, sortNotes(updatedNotes));
+            setState({ notes: getLocalData(STORAGE_KEY, []), isSaving: false, activeNoteId: noteIdToOpen });
+            handleBackToList();
         };
 
         const handleDeleteNote = () => {
             if (!appState.activeNoteId || appState.activeNoteId === 'new') return;
             const updatedNotes = appState.notes.filter(note => note.id !== appState.activeNoteId);
-            saveLocalNotes(updatedNotes);
+            saveLocalData(STORAGE_KEY, updatedNotes);
             setState({ notes: updatedNotes });
             handleBackToList();
         };
 
+        // --- LOGIKA TRIK ---
         const handleNotesSwitchTrigger = () => {
             document.getElementById('content-editor')?.blur();
             if (appState.appMode !== 'Notes Switch' || appState.title !== appState.notesSwitchTitle) return;
             const expectedInitialContent = generateRandomListContent(appState.startItemsList);
             if (appState.content.trim() === expectedInitialContent.trim() && appState.endItemsList.length > 0) {
-                const newContent = generateRandomListContent(appState.endItemsList);
-                setState({ content: newContent });
+                setState({ content: generateRandomListContent(appState.endItemsList) });
             }
         };
         
@@ -349,7 +268,7 @@
         const triggerPeek = () => {
             document.getElementById('content-editor')?.blur();
             const titleEditor = document.getElementById('title-editor');
-            if (titleEditor) titleEditor.value = appState.rememberedItem || "Menunggu Item...";
+            if (titleEditor) titleEditor.value = appState.rememberedItem || "Menunggu...";
         };
         const startLongPress = () => {
             if (appState.appMode !== 'Peek' || appState.peekSubMode !== 'Hold to Peek' || appState.title !== appState.peekTitle) return;
@@ -365,22 +284,15 @@
             }
         };
 
-        // [PERBAIKAN FUNGSI 'TYPE TO PEEK']
         const handleTypeToPeek = (event) => {
             const { appMode, peekSubMode, activeNoteId, typeToPeekItem } = appState;
             if (appMode !== 'Peek' || peekSubMode !== 'Type to Peek' || activeNoteId !== 'new' || !typeToPeekItem) return;
-
             event.preventDefault();
-            
             let index = appState.typeToPeekIndex;
             if (index < typeToPeekItem.length) {
                 const editor = event.target;
                 const revealedPart = typeToPeekItem.substring(0, index + 1);
-
-                // Langkah 1: Ubah nilai di layar secara langsung (menjaga fokus)
                 editor.value = revealedPart;
-                
-                // Langkah 2: Sinkronkan state secara diam-diam (mencegah bug gulir)
                 appState.content = revealedPart;
                 appState.typeToPeekIndex = index + 1;
             }
@@ -389,44 +301,33 @@
         // --- LOGIKA PENGATURAN ---
         const syncTrickNotes = () => {
             const { appMode, notesSwitchTitle, peekTitle } = appState;
-            let allNotes = getLocalNotes();
+            let allNotes = getLocalData(STORAGE_KEY, []);
             let nonTrickNotes = allNotes.filter(n => n.id !== 'trick_note_NotesSwitch' && n.id !== 'trick_note_Peek');
             let trickNote = null;
 
-            if (appMode === 'Notes Switch') {
-                trickNote = { id: 'trick_note_NotesSwitch', title: notesSwitchTitle, content: generateRandomListContent(appState.startItemsList), createdAt: Date.now(), updatedAt: Date.now() };
-            } else if (appMode === 'Peek') {
-                trickNote = { id: 'trick_note_Peek', title: peekTitle, content: generateRandomListContent(appState.startItemsList, true), createdAt: Date.now(), updatedAt: Date.now() };
-            }
+            if (appMode === 'Notes Switch') { trickNote = { id: 'trick_note_NotesSwitch', title: notesSwitchTitle, content: generateRandomListContent(appState.startItemsList), createdAt: Date.now(), updatedAt: Date.now() }; }
+            else if (appMode === 'Peek') { trickNote = { id: 'trick_note_Peek', title: peekTitle, content: generateRandomListContent(appState.startItemsList, true), createdAt: Date.now(), updatedAt: Date.now() }; }
 
             const finalNotes = sortNotes(trickNote ? [...nonTrickNotes, trickNote] : nonTrickNotes);
-            saveLocalNotes(finalNotes);
+            saveLocalData(STORAGE_KEY, finalNotes);
             appState.notes = finalNotes;
         };
         
-        const handleSettingUpdate = (key, value, saveFunction, successMessage) => {
+        const handleSettingUpdate = (key, value, saveFunc, successMsg) => {
             const trimmedValue = value.trim();
             if (!trimmedValue || trimmedValue === appState[key]) return;
-            saveFunction(trimmedValue);
+            saveFunc(key, trimmedValue);
             setState({ [key]: trimmedValue });
             if(key.includes('Title')) syncTrickNotes();
-            showStatus(successMessage, false);
+            showStatus(successMsg);
         };
         
         const handleCustomIdUpdate = async (customIdInput) => {
             const trimmedId = customIdInput.trim();
-            if (!/^\d{4}$/.test(trimmedId)) {
-                showStatus("Custom ID harus 4 digit angka!", true); return;
-            }
+            if (!/^\d{4}$/.test(trimmedId)) { showStatus("ID harus 4 digit angka!", true); return; }
             if (trimmedId === appState.customId) return;
-
-            const docRef = doc(db, `dice/${trimmedId}`);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                showStatus(`ID ${trimmedId} sudah digunakan.`, true); return;
-            }
-
-            saveCustomId(trimmedId);
+            if (await isIdActiveOnFirebase(trimmedId)) { showStatus(`ID ${trimmedId} sudah digunakan.`, true); return; }
+            saveSetting(CUSTOM_ID_KEY, trimmedId);
             setState({ customId: trimmedId });
             await initializeDiceDocument(trimmedId, true);
             setupPeekListener();
@@ -434,69 +335,57 @@
 
         const handleItemsListUpdate = (listType, inputString) => {
             const newItems = inputString.split('\n').map(item => item.trim()).filter(Boolean);
-            if (newItems.length === 0) {
-                showStatus("Daftar tidak boleh kosong!", true); return;
-            }
-            if (appState.appMode === 'Peek' && newItems.length > 20) {
-                 showStatus("Daftar Peek maksimal 20 item!", true); return;
-            }
+            if (newItems.length === 0) { showStatus("Daftar tidak boleh kosong!", true); return; }
+            if (appState.appMode === 'Peek' && newItems.length > 20) { showStatus("Daftar Peek maksimal 20 item!", true); return; }
 
             const key = listType === 'start' ? START_ITEMS_LIST_KEY : END_ITEMS_LIST_KEY;
             const stateKey = listType === 'start' ? 'startItemsList' : 'endItemsList';
-            saveItemsList(key, newItems);
+            saveLocalData(key, newItems);
             setState({ [stateKey]: newItems });
-            
             syncTrickNotes();
-            showStatus(`Daftar ${listType === 'start' ? 'Awal' : 'Akhir'} diperbarui.`, false);
-            setState({});
+            showStatus(`Daftar ${listType === 'start' ? 'Awal' : 'Akhir'} diperbarui.`);
+            renderApp();
         };
         
         const handleModeChange = async (newMode) => {
             if (newMode === 'Peek') {
-                if (appState.customId.length !== 4) {
-                    showStatus("Mode Peek memerlukan Custom ID 4 digit.", true);
-                    renderApp(); return;
-                }
-                if (!(await isIdActiveOnFirebase(appState.customId))) {
-                    showStatus("ID Kustom tidak aktif. Mode tidak bisa dialihkan.", true);
-                    renderApp(); return;
-                }
+                if (appState.customId.length !== 4) { showStatus("Mode Peek memerlukan ID 4 digit.", true); renderApp(); return; }
+                if (!(await isIdActiveOnFirebase(appState.customId))) { showStatus("ID tidak aktif. Mode tidak bisa dialihkan.", true); renderApp(); return; }
             }
-            saveAppMode(newMode);
+            saveSetting(APP_MODE_KEY, newMode);
             setState({ appMode: newMode });
             syncTrickNotes();
             setupPeekListener();
-            showStatus(`Mode diubah ke: ${newMode}`, false);
+            showStatus(`Mode diubah ke: ${newMode}`);
         };
         
         const handlePeekSubModeChange = (newMode) => {
-            savePeekSubMode(newMode);
+            saveSetting(PEEK_SUB_MODE_KEY, newMode);
             setState({ peekSubMode: newMode });
-            showStatus(`Sub-mode Peek diubah ke: ${newMode}`, false);
+            showStatus(`Sub-mode Peek diubah ke: ${newMode}`);
         };
 
         // --- RENDER FUNCTIONS ---
         const renderNoteList = () => {
             const displayNotes = appState.notes.filter(note => !isMatchingSecretKeyword(note.title, appState.secretKeyword));
             return `
-                <div class="flex flex-col h-full bg-white light-theme">
-                    <header class="flex-shrink-0 sticky top-0 z-10 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200">
-                        <h1 class="text-3xl font-bold text-black">Daftar Catatan</h1>
+                <div class="flex flex-col h-full bg-brand-surface">
+                    <header class="flex-shrink-0 sticky top-0 z-10 p-4 bg-brand-surface/80 backdrop-blur-md">
+                        <h1 class="text-3xl font-bold text-gray-800">Catatan</h1>
                     </header>
-                    <div class="flex-grow overflow-y-auto space-y-3 p-4 pb-24">
+                    <div class="flex-grow overflow-y-auto px-4 pb-24">
                         ${displayNotes.length === 0 ? `<p class="text-gray-500 text-center mt-10">Belum ada catatan.</p>` : 
-                        displayNotes.map((note) => `
-                            <div id="note-${note.id}" class="bg-white p-4 rounded-xl shadow-md cursor-pointer transition duration-200 border-l-4 border-indigo-400 note-item"
+                        `<div class="grid grid-cols-2 gap-3">${displayNotes.map((note) => `
+                            <div id="note-${note.id}" class="bg-white p-4 rounded-xl shadow-sm cursor-pointer transition duration-200 border border-gray-200 hover:shadow-md flex flex-col h-44 overflow-hidden"
                                 onclick="window.handleOpenNote({ id: '${note.id}', title: \`${note.title.replace(/`/g, '\\`')}\`, content: \`${note.content.replace(/`/g, '\\`')}\` })">
-                                <h2 class="text-lg font-semibold truncate text-black">${note.title || 'Catatan Tanpa Judul'}</h2>
-                                <p class="text-sm text-gray-500 mt-1">${note.content ? (note.content.substring(0, 150).replace(/\n/g, ' ') + (note.content.length > 150 ? '...' : '')) : '...'}</p>
-                                <span class="text-xs text-gray-400 mt-2 block">
-                                    Diperbarui: ${new Date(note.updatedAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-                                </span>
-                            </div>`).join('')}
+                                <h2 class="text-md font-medium text-gray-900 break-words flex-shrink-0 truncate">${note.title || 'Tanpa Judul'}</h2>
+                                <p class="text-sm text-gray-600 mt-2 break-words text-ellipsis overflow-hidden">
+                                    ${note.content ? note.content.substring(0, 120) : '...'}
+                                </p>
+                            </div>`).join('')}</div>`}
                     </div>
-                    <button onclick="window.handleNewNote()" class="fixed bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 z-20">
-                        ${Icons.Plus.replace('dark-icon-filter', '')}
+                    <button onclick="window.handleNewNote()" class="fixed bottom-6 right-6 w-14 h-14 bg-brand-yellow text-white rounded-2xl shadow-lg flex items-center justify-center transition transform hover:scale-105 active:scale-95 z-20">
+                        ${Icons.Plus}
                     </button>
                 </div>`;
         };
@@ -505,29 +394,26 @@
             const isNotesSwitchNote = appState.appMode === 'Notes Switch' && appState.title === appState.notesSwitchTitle;
             const isPeekNote = appState.appMode === 'Peek' && appState.title === appState.peekTitle;
             const isTrickNoteActive = isNotesSwitchNote || isPeekNote;
-
             let extraAttributes = '';
             if (isNotesSwitchNote) extraAttributes = `onclick="window.handleNotesSwitchTrigger()"`;
-            else if (isPeekNote && appState.peekSubMode === 'Hold to Peek') {
-                extraAttributes = `onmousedown="window.startLongPress()" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress()" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
-            }
+            else if (isPeekNote && appState.peekSubMode === 'Hold to Peek') extraAttributes = `onmousedown="window.startLongPress()" onmouseup="window.cancelLongPress()" onmouseleave="window.cancelLongPress()" ontouchstart="window.startLongPress()" ontouchend="window.cancelLongPress()" ontouchcancel="window.cancelLongPress()"`;
 
             return `
-                <div class="flex flex-col h-full bg-white light-theme">
-                    <header class="flex-shrink-0 sticky top-0 z-10 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md border-b border-gray-200">
-                        <button onclick="window.handleBackToList()" class="p-2 text-gray-700 rounded-full hover:bg-gray-100">${Icons.ArrowLeft}</button>
+                <div class="flex flex-col h-full bg-white">
+                    <header class="flex-shrink-0 sticky top-0 z-10 flex justify-between items-center p-2 bg-white/80 backdrop-blur-md border-b border-gray-200">
+                        <button onclick="window.handleBackToList()" class="p-3 text-gray-600 rounded-full hover:bg-gray-100">${Icons.ArrowLeft}</button>
                         <div class="flex space-x-2">
-                            ${(appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `<button onclick="window.handleDeleteNote()" class="p-2 text-red-500 rounded-full hover:bg-red-100">${Icons.Trash2}</button>` : ''}
-                            <button onclick="window.handleSaveNote()" class="p-2 rounded-full text-white transition shadow-md ${appState.isSaving ? 'bg-gray-300' : 'bg-indigo-500 hover:bg-indigo-600'}">
-                                ${appState.isSaving ? Icons.Loader2.replace('class="', 'class="animate-spin ') : Icons.Save.replace('dark-icon-filter', '')}
+                            ${(appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `<button onclick="window.handleDeleteNote()" class="p-3 text-gray-600 rounded-full hover:bg-gray-100">${Icons.Trash}</button>` : ''}
+                            <button onclick="window.handleSaveNote()" class="p-3 rounded-full text-gray-600 hover:bg-gray-100">
+                                ${appState.isSaving ? Icons.Loader : Icons.Save}
                             </button>
                         </div>
                     </header>
-                    <div class="flex-grow flex flex-col overflow-y-auto p-4">
+                    <div class="flex-grow flex flex-col overflow-y-auto px-5 pt-3 pb-5">
                         <input id="title-editor" type="text" value="${appState.title}" oninput="window.handleLiveInput('title', this.value)"
-                            placeholder="Judul Catatan" class="flex-shrink-0 text-2xl font-semibold p-2 border-b-2 border-gray-100 mb-4 focus:border-indigo-500 outline-none w-full" ${isTrickNoteActive ? 'readonly' : ''} />
+                            placeholder="Judul" class="flex-shrink-0 text-2xl font-medium p-2 -mx-2 mb-2 focus:outline-none w-full" ${isTrickNoteActive ? 'readonly' : ''} />
                         <textarea id="content-editor" oninput="window.handleLiveInput('content', this.value)" onkeydown="window.handleTypeToPeek(event)"
-                            placeholder="Isi catatan..." class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
+                            placeholder="Mulai mengetik..." class="flex-grow w-full p-2 -mx-2 text-gray-800 resize-none outline-none leading-relaxed text-base"
                             ${extraAttributes} ${isTrickNoteActive || (appState.appMode === 'Peek' && appState.peekSubMode === 'Hold to Peek') ? 'readonly' : ''}>${appState.content}</textarea>
                     </div>
                 </div>`;
@@ -535,59 +421,42 @@
 
         const renderSecretSettingsPanel = () => {
             const { appMode, peekSubMode, secretKeyword, customId, notesSwitchTitle, peekTitle, startItemsList, endItemsList } = appState;
-            
             let modeSpecificSettings = '';
             if (appMode === 'Notes Switch') {
-                modeSpecificSettings = `
-                    <div>
-                        <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Notes Switch:</p>
-                        <input type="text" value="${notesSwitchTitle}" class="w-full bg-gray-700 p-3 rounded-lg" 
-                            onblur="handleSettingUpdate('notesSwitchTitle', this.value, saveNotesSwitchTitle, 'Judul Notes Switch diperbarui.')">
-                    </div>`;
+                modeSpecificSettings = `<div><label class="text-sm font-medium text-brand-dark-text mb-2 block">Judul Mode Notes Switch:</label><input type="text" value="${notesSwitchTitle}" class="w-full bg-brand-dark-bg p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none" onblur="handleSettingUpdate('notesSwitchTitle', this.value, saveSetting, 'Judul Notes Switch diperbarui.')"></div>`;
             } else if (appMode === 'Peek') {
                 modeSpecificSettings = `
-                    <div>
-                        <p class="text-sm font-light text-gray-400 mb-2">Judul Mode Peek:</p>
-                        <input type="text" value="${peekTitle}" class="w-full bg-gray-700 p-3 rounded-lg"
-                            onblur="handleSettingUpdate('peekTitle', this.value, savePeekTitle, 'Judul Peek diperbarui.')">
-                    </div>
-                    <div class="mt-4">
-                         <p class="text-sm font-light text-gray-400 mb-2">Sub-mode Peek:</p>
-                         <div class="flex flex-wrap gap-2">${['Hold to Peek', 'Type to Peek'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-600 rounded-lg ${peekSubMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="peekSubMode" value="${mode}" ${peekSubMode === mode ? 'checked' : ''} onchange="handlePeekSubModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
-                    </div>`;
+                    <div><label class="text-sm font-medium text-brand-dark-text mb-2 block">Judul Mode Peek:</label><input type="text" value="${peekTitle}" class="w-full bg-brand-dark-bg p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none" onblur="handleSettingUpdate('peekTitle', this.value, saveSetting, 'Judul Peek diperbarui.')"></div>
+                    <div class="mt-4"><p class="text-sm font-medium text-brand-dark-text mb-2">Sub-mode Peek:</p><div class="flex flex-wrap gap-2">${['Hold to Peek', 'Type to Peek'].map(mode => `<label class="flex items-center cursor-pointer p-3 bg-brand-dark-bg rounded-lg border ${peekSubMode === mode ? 'border-amber-500 ring-2 ring-amber-500' : 'border-gray-600'}"><input type="radio" name="peekSubMode" value="${mode}" ${peekSubMode === mode ? 'checked' : ''} onchange="handlePeekSubModeChange(this.value)" class="w-4 h-4 text-amber-600 bg-gray-700 border-gray-500 focus:ring-amber-600 focus:ring-2"><span class="ml-2 text-sm font-medium text-brand-dark-text">${mode}</span></label>`).join('')}</div></div>`;
             }
 
             return `
-                <div class="flex flex-col h-full bg-gray-900 text-white p-4 font-sans secret-panel-container">
-                    <header class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3"><button onclick="handleBackToList()" class="p-2 rounded-full hover:bg-gray-800">${Icons.ArrowLeft.replace('class="', 'class="dark-icon-filter ')}</button><h1 class="text-xl font-mono tracking-widest text-red-500">${Icons.Settings} PENGATURAN</h1><div class="w-10"></div></header>
-                    <div class="flex-grow overflow-y-auto space-y-6 pb-6">
-                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl space-y-4">
-                            <h2 class="text-lg font-bold text-indigo-400">${Icons.Unlock} Akses Rahasia</h2>
-                            <div><p class="text-sm text-gray-400 mb-2">Kata Kunci:</p><input type="text" value="${secretKeyword}" class="w-full bg-gray-700 p-3 rounded-lg font-mono uppercase" onblur="handleSettingUpdate('secretKeyword', this.value.toUpperCase(), saveSecretKeyword, 'Kata Kunci diperbarui.')"></div>
-                            <div><p class="text-sm text-gray-400 mb-2">Custom ID (4 Digit):</p><input type="text" value="${customId}" class="w-24 bg-gray-700 p-3 rounded-lg font-mono" onblur="handleCustomIdUpdate(this.value)" maxlength="4"></div>
+                <div class="flex flex-col h-full bg-brand-dark-bg text-brand-dark-text dark-theme">
+                    <header class="flex-shrink-0 flex justify-between items-center p-2 border-b border-gray-700"><button onclick="handleBackToList()" class="p-3 rounded-full hover:bg-brand-dark-surface">${Icons.ArrowLeft}</button><h1 class="text-lg font-medium flex items-center">${Icons.Settings} Pengaturan Rahasia</h1><div class="w-12"></div></header>
+                    <div class="flex-grow overflow-y-auto p-4 space-y-6">
+                        <div class="bg-brand-dark-surface p-4 rounded-xl space-y-4">
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center">${Icons.Zap} Mode & Akses</h2>
+                            <div><label class="text-sm font-medium text-brand-dark-text mb-2 block">Kata Kunci:</label><input type="text" value="${secretKeyword}" class="w-full bg-brand-dark-bg p-3 rounded-lg uppercase border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none" onblur="handleSettingUpdate('secretKeyword', this.value.toUpperCase(), saveSetting, 'Kata Kunci diperbarui.')"></div>
+                            <div><label class="text-sm font-medium text-brand-dark-text mb-2 block">Custom ID (4 Digit):</label><input type="text" value="${customId}" class="w-28 bg-brand-dark-bg p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none" onblur="handleCustomIdUpdate(this.value)" maxlength="4"></div>
+                            <div class="mt-4"><p class="text-sm font-medium text-brand-dark-text mb-2">Mode Operasi:</p><div class="flex flex-wrap gap-2">${['Notes Switch', 'Peek', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-3 bg-brand-dark-bg rounded-lg border ${appMode === mode ? 'border-amber-500 ring-2 ring-amber-500' : 'border-gray-600'}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="handleModeChange(this.value)" class="w-4 h-4 text-amber-600 bg-gray-700 border-gray-500 focus:ring-amber-600 focus:ring-2"><span class="ml-2 text-sm font-medium text-brand-dark-text">${mode}</span></label>`).join('')}</div></div>
+                            <div class="mt-6 space-y-4">${modeSpecificSettings ? `<h3 class="text-md font-semibold text-amber-300 border-t border-gray-700 pt-4">Kustomisasi Mode Aktif</h3>${modeSpecificSettings}` : ''}</div>
                         </div>
-                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
-                            <h2 class="text-lg font-bold text-indigo-400 mb-3">${Icons.Zap} Mode Operasi</h2>
-                            <div class="flex flex-wrap gap-2">${['Notes Switch', 'Peek', 'Normal'].map(mode => `<label class="flex items-center cursor-pointer p-2 bg-gray-700 rounded-lg ${appMode === mode ? 'ring-2 ring-red-500' : ''}"><input type="radio" name="appMode" value="${mode}" ${appMode === mode ? 'checked' : ''} onchange="handleModeChange(this.value)" class="mr-2"><span>${mode}</span></label>`).join('')}</div>
-                            <div class="mt-6 space-y-4">${modeSpecificSettings ? `<h3 class="text-md font-semibold text-red-300">Kustomisasi Mode Aktif</h3>${modeSpecificSettings}` : ''}</div>
-                        </div>
-                        <div class="bg-gray-800 p-4 rounded-xl shadow-xl">
-                           <h2 class="text-lg font-bold text-indigo-400 mb-2">${Icons.Edit} Kustomisasi Daftar</h2>
-                           <textarea id="start-list-input" rows="8" class="bg-gray-700 text-gray-200 p-3 rounded-lg resize-none w-full font-mono text-sm">${startItemsList.join('\n')}</textarea>
-                           <button onclick="handleItemsListUpdate('start', document.getElementById('start-list-input').value)" class="mt-3 p-2 w-full bg-indigo-500 rounded-lg">Simpan Daftar Awal</button>
-                           ${appMode === 'Notes Switch' ? `<textarea id="end-list-input" rows="8" class="mt-4 bg-gray-700 text-gray-200 p-3 rounded-lg resize-none w-full font-mono text-sm">${endItemsList.join('\n')}</textarea><button onclick="handleItemsListUpdate('end', document.getElementById('end-list-input').value)" class="mt-3 p-2 w-full bg-indigo-500 rounded-lg">Simpan Daftar Akhir</button>` : ''}
+                        <div class="bg-brand-dark-surface p-4 rounded-xl">
+                           <h2 class="text-lg font-bold text-amber-400 mb-2 flex items-center">${Icons.Edit} Kustomisasi Daftar</h2>
+                           <textarea id="start-list-input" rows="8" class="bg-brand-dark-bg text-gray-200 p-3 rounded-lg resize-none w-full text-sm border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none">${startItemsList.join('\n')}</textarea>
+                           <button onclick="handleItemsListUpdate('start', document.getElementById('start-list-input').value)" class="mt-3 py-2 px-4 w-full bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-semibold">Simpan Daftar Awal</button>
+                           ${appMode === 'Notes Switch' ? `<textarea id="end-list-input" rows="8" class="mt-4 bg-brand-dark-bg text-gray-200 p-3 rounded-lg resize-none w-full text-sm border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none">${endItemsList.join('\n')}</textarea><button onclick="handleItemsListUpdate('end', document.getElementById('end-list-input').value)" class="mt-3 py-2 px-4 w-full bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-semibold">Simpan Daftar Akhir</button>` : ''}
                         </div>
                     </div>
                 </div>`;
         };
         
-        const renderHelpModal = () => !appState.showHelpModal ? '' : `<div id="help-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="hideHelpModal()"><div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full text-gray-800" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4 text-indigo-600">Informasi Bantuan</h2><p class="mb-4">Kata kunci panel rahsia Anda adalah:</p><div class="bg-gray-100 p-3 rounded-md"><p class="text-lg font-mono font-bold text-gray-900">${appState.secretKeyword}</p></div><button onclick="hideHelpModal()" class="mt-6 w-full bg-indigo-500 text-white py-2 rounded-lg">Tutup</button></div></div>`;
+        const renderHelpModal = () => !appState.showHelpModal ? '' : `<div id="help-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="hideHelpModal()"><div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full text-gray-800" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4 text-amber-600">Informasi Bantuan</h2><p class="mb-4">Kata kunci panel rahasia Anda adalah:</p><div class="bg-gray-100 p-3 rounded-md text-center"><p class="text-lg font-mono font-bold text-gray-900">${appState.secretKeyword}</p></div><button onclick="hideHelpModal()" class="mt-6 w-full bg-amber-500 text-white py-2 rounded-lg font-semibold">Tutup</button></div></div>`;
         
         // --- FIREBASE LISTENER ---
         const setupPeekListener = () => {
             if (unsubscribeListener) unsubscribeListener();
             if (appState.appMode !== 'Peek' || !db || !/^\d{4}$/.test(appState.customId)) return;
-
             unsubscribeListener = onSnapshot(doc(db, `dice/${appState.customId}`), (docSnapshot) => {
                 if (docSnapshot.exists()) {
                     const diceNumber = docSnapshot.data()?.currentDiceNumber;
@@ -603,25 +472,29 @@
             });
         };
 
-        // --- INIT APP ---
+        // --- INIT & RENDER APP ---
         const initApp = async () => {
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                else await signInAnonymously(auth);
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken); else await signInAnonymously(auth);
             } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
 
             Object.assign(appState, {
-                secretKeyword: getSecretKeyword(), appMode: getAppMode(), peekSubMode: getPeekSubMode(),
-                startItemsList: getItemsList(START_ITEMS_LIST_KEY, DEFAULT_START_ITEMS_20),
-                endItemsList: getItemsList(END_ITEMS_LIST_KEY, DEFAULT_END_ITEMS_19),
-                customId: getCustomId(), notesSwitchTitle: getNotesSwitchTitle(), peekTitle: getPeekTitle(),
+                notes: getLocalData(STORAGE_KEY, []),
+                secretKeyword: getSetting(SECRET_KEYWORD_KEY, 'KUNCI'),
+                appMode: getSetting(APP_MODE_KEY, 'Notes Switch'),
+                peekSubMode: getSetting(PEEK_SUB_MODE_KEY, 'Hold to Peek'),
+                startItemsList: getLocalData(START_ITEMS_LIST_KEY, DEFAULT_START_ITEMS_20),
+                endItemsList: getLocalData(END_ITEMS_LIST_KEY, DEFAULT_END_ITEMS_19),
+                customId: getSetting(CUSTOM_ID_KEY, ''),
+                notesSwitchTitle: getSetting(NOTES_SWITCH_TITLE_KEY, DEFAULT_TRICK_TITLE),
+                peekTitle: getSetting(PEEK_TITLE_KEY, DEFAULT_TRICK_TITLE),
             });
-
+            
             syncTrickNotes();
-            setState({ isLoading: false, notes: sortNotes(getLocalNotes()) });
+            setState({ isLoading: false, notes: getLocalData(STORAGE_KEY, []) });
             setupPeekListener();
         };
 
@@ -629,30 +502,27 @@
             const appContentDiv = document.getElementById('app-content');
             const modalContainer = document.getElementById('modal-container');
             const statusContainer = document.getElementById('status-container');
-            
             if (!appContentDiv || !modalContainer || !statusContainer) return;
             if (appState.isLoading) return;
             
-            const isSecretNote = appState.activeNoteId && isMatchingSecretKeyword(appState.title, appState.secretKeyword);
-            appContentDiv.innerHTML = appState.activeNoteId !== null ? (isSecretNote ? renderSecretSettingsPanel() : renderNoteEditor()) : renderNoteList();
+            const isSecretPanel = appState.activeNoteId === 'secret-panel';
+            if (isSecretPanel) { appContentDiv.innerHTML = renderSecretSettingsPanel(); }
+            else if (appState.activeNoteId) { appContentDiv.innerHTML = renderNoteEditor(); }
+            else { appContentDiv.innerHTML = renderNoteList(); }
+            
             modalContainer.innerHTML = renderHelpModal();
-
             statusContainer.innerHTML = ''; 
             if (appState.statusMessage) {
                 const { message, isError } = appState.statusMessage;
                 const statusElement = document.createElement('div');
-                statusElement.className = `pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white text-center py-3 px-4 animate-fade-in-out`;
+                statusElement.className = `pointer-events-auto max-w-md mx-auto rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-gray-800'} text-white text-center py-3 px-4 animate-fade-in-out`;
                 statusElement.textContent = message;
                 statusContainer.appendChild(statusElement);
             }
-            
             Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleNotesSwitchTrigger, handleModeChange, handlePeekSubModeChange, handleLiveInput, startLongPress, cancelLongPress, handleTypeToPeek, handleSettingUpdate, handleCustomIdUpdate, handleItemsListUpdate, hideHelpModal });
         };
-
-        window.addEventListener('load', () => {
-            setTimeout(initApp, 300);
-        });
-
+        
+        window.addEventListener('load', () => setTimeout(initApp, 300));
     </script>
 </body>
 </html>
