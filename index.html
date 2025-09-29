@@ -88,25 +88,19 @@
         /* Gaya untuk Floating Debug Log */
         #debug-log-container {
             position: fixed;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: #0f0; /* Hijau terang untuk visibilitas */
             padding: 8px;
             border-radius: 8px;
             z-index: 9999;
             font-family: monospace;
-            font-size: 10px;
-            max-height: 150px;
-            overflow-y: auto;
-            width: 200px;
-            opacity: 0.8;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 220px;
+            opacity: 0.9;
             pointer-events: none; /* Agar tidak mengganggu interaksi */
-        }
-        #debug-log-container p {
-            margin: 0 0 4px;
-            padding: 0;
-            border-bottom: 1px solid #555;
         }
     </style>
 </head>
@@ -127,9 +121,7 @@
         <!-- Kontainer untuk notifikasi floating -->
         <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
         <!-- Kontainer untuk Debug Log -->
-        <div id="debug-log-container">
-            <p>Debug Log Initialized...</p>
-        </div>
+        <div id="debug-log-container"></div>
     </div>
 
     <!-- Firebase CDN Imports -->
@@ -672,39 +664,38 @@
         };
         
         // --- DEBUG & SCROLL GUARDIAN ---
-        let lastKnownHeight = 0;
-        const debugLogContainer = document.getElementById('debug-log-container');
-        
-        const updateDebugLog = (message) => {
-            const p = document.createElement('p');
-            p.textContent = message;
-            debugLogContainer.insertBefore(p, debugLogContainer.firstChild);
-            if (debugLogContainer.children.length > 10) {
-                debugLogContainer.removeChild(debugLogContainer.lastChild);
-            }
+        const updateScrollLockLog = () => {
+            const debugLogContainer = document.getElementById('debug-log-container');
+            if (!debugLogContainer) return;
+
+            const html = document.documentElement;
+            const body = document.body;
+            const htmlStyle = window.getComputedStyle(html);
+            const bodyStyle = window.getComputedStyle(body);
+
+            const htmlStatus = `HTML: ovf=${htmlStyle.overflow}, sH/cH=${html.scrollHeight}/${html.clientHeight}`;
+            const bodyStatus = `BODY: ovf=${bodyStyle.overflow}, pos=${bodyStyle.position}`;
+
+            const isHtmlLocked = htmlStyle.overflow === 'hidden' && html.scrollHeight <= html.clientHeight;
+            const isBodyLocked = bodyStyle.overflow === 'hidden' && bodyStyle.position === 'fixed';
+            const overallStatus = (isHtmlLocked && isBodyLocked) ? 'LOCKED' : '!!!UNLOCKED!!!';
+            
+            debugLogContainer.innerHTML = `
+                <strong>${overallStatus}</strong><br>
+                <small>${htmlStatus}</small><br>
+                <small>${bodyStatus}</small>
+            `;
+
+            // Atur warna berdasarkan status untuk visibilitas
+            debugLogContainer.style.color = (overallStatus === 'LOCKED') ? '#0f0' : '#f00';
+            debugLogContainer.style.borderColor = (overallStatus === 'LOCKED') ? '#0f0' : '#f00';
         };
 
-        const forceScrollLock = () => {
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            document.body.style.width = '100%';
-        };
 
         window.addEventListener('load', () => {
-            // Pengawas Tata Letak Proaktif
-            const layoutObserver = new ResizeObserver(() => {
-                const currentHeight = document.documentElement.clientHeight;
-                if (lastKnownHeight !== 0 && Math.abs(currentHeight - lastKnownHeight) > 1) { // Hanya log perubahan signifikan
-                    const diff = currentHeight - lastKnownHeight;
-                    updateDebugLog(`H: ${currentHeight}px (Diff: ${diff > 0 ? '+' : ''}${diff.toFixed(0)})`);
-                }
-                lastKnownHeight = currentHeight;
-                forceScrollLock(); // Terapkan kembali kuncian setiap ada perubahan
-            });
-            // PERBAIKAN KRUSIAL: Amati documentElement, bukan body
-            layoutObserver.observe(document.documentElement);
-
+            // Jalankan pemantauan status secara berkala
+            setInterval(updateScrollLockLog, 1000); // Cek setiap detik
+            
             setTimeout(initApp, 300);
         });
 
