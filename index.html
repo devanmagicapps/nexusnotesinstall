@@ -101,6 +101,7 @@
             overflow-y: auto;
             width: 200px;
             opacity: 0.8;
+            pointer-events: none; /* Agar tidak mengganggu interaksi */
         }
         #debug-log-container p {
             margin: 0 0 4px;
@@ -693,23 +694,17 @@
         window.addEventListener('load', () => {
             // Pengawas Tata Letak Proaktif
             const layoutObserver = new ResizeObserver(() => {
-                const currentHeight = document.documentElement.scrollHeight;
-                if (lastKnownHeight !== 0 && currentHeight !== lastKnownHeight) {
+                const currentHeight = document.documentElement.clientHeight;
+                if (lastKnownHeight !== 0 && Math.abs(currentHeight - lastKnownHeight) > 1) { // Hanya log perubahan signifikan
                     const diff = currentHeight - lastKnownHeight;
-                    updateDebugLog(`H: ${currentHeight}px (Diff: ${diff > 0 ? '+' : ''}${diff})`);
+                    updateDebugLog(`H: ${currentHeight}px (Diff: ${diff > 0 ? '+' : ''}${diff.toFixed(0)})`);
                 }
                 lastKnownHeight = currentHeight;
                 forceScrollLock(); // Terapkan kembali kuncian setiap ada perubahan
             });
-            layoutObserver.observe(document.body);
+            // PERBAIKAN KRUSIAL: Amati documentElement, bukan body
+            layoutObserver.observe(document.documentElement);
 
-            // Penjaga Gulir & Fokus Cerdas
-            window.addEventListener('click', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                    e.target.focus();
-                }
-            }, true);
-            
             setTimeout(initApp, 300);
         });
 
