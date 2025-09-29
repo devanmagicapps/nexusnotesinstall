@@ -84,6 +84,29 @@
             -ms-user-select: none; /* IE 10+ and Edge */
             user-select: none; /* Standard syntax */
         }
+
+        /* Gaya untuk Floating Debug Log */
+        #debug-log-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-family: monospace;
+            font-size: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 200px;
+            opacity: 0.8;
+        }
+        #debug-log-container p {
+            margin: 0 0 4px;
+            padding: 0;
+            border-bottom: 1px solid #555;
+        }
     </style>
 </head>
 <body class="bg-white">
@@ -102,6 +125,10 @@
         <div id="modal-container"></div>
         <!-- Kontainer untuk notifikasi floating -->
         <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
+        <!-- Kontainer untuk Debug Log -->
+        <div id="debug-log-container">
+            <p>Debug Log Initialized...</p>
+        </div>
     </div>
 
     <!-- Firebase CDN Imports -->
@@ -643,30 +670,45 @@
             Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleNotesSwitchTrigger, handleModeChange, handlePeekSubModeChange, handleLiveInput, startLongPress, cancelLongPress, handleTypeToPeek, handleSettingUpdate, handleCustomIdUpdate, handleItemsListUpdate, hideHelpModal });
         };
         
-        // --- PENJAGA GULIR & FOKUS (SCROLL & FOCUS GUARDIAN) ---
-        const preventBodyScroll = (event) => {
-            let target = event.target;
-            while (target && target !== document.body) {
-                if (target.classList.contains('overflow-y-auto')) {
-                    return; // Izinkan gulir di dalam container yang ditentukan
-                }
-                target = target.parentElement;
+        // --- DEBUG & SCROLL GUARDIAN ---
+        let lastKnownHeight = 0;
+        const debugLogContainer = document.getElementById('debug-log-container');
+        
+        const updateDebugLog = (message) => {
+            const p = document.createElement('p');
+            p.textContent = message;
+            debugLogContainer.insertBefore(p, debugLogContainer.firstChild);
+            if (debugLogContainer.children.length > 10) {
+                debugLogContainer.removeChild(debugLogContainer.lastChild);
             }
-            event.preventDefault(); // Cegah gulir di semua area lain
         };
 
-        const handleFocus = (event) => {
-            // Perbaikan PWA: Secara manual memfokuskan input/textarea saat diketuk
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-                event.target.focus();
-            }
+        const forceScrollLock = () => {
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            document.body.style.width = '100%';
         };
 
         window.addEventListener('load', () => {
-            // Pasang listener untuk mengelola gulir dan fokus
-            window.addEventListener('touchmove', preventBodyScroll, { passive: false });
-            window.addEventListener('wheel', preventBodyScroll, { passive: false });
-            window.addEventListener('click', handleFocus, true); // 'true' untuk event capturing
+            // Pengawas Tata Letak Proaktif
+            const layoutObserver = new ResizeObserver(() => {
+                const currentHeight = document.documentElement.scrollHeight;
+                if (lastKnownHeight !== 0 && currentHeight !== lastKnownHeight) {
+                    const diff = currentHeight - lastKnownHeight;
+                    updateDebugLog(`H: ${currentHeight}px (Diff: ${diff > 0 ? '+' : ''}${diff})`);
+                }
+                lastKnownHeight = currentHeight;
+                forceScrollLock(); // Terapkan kembali kuncian setiap ada perubahan
+            });
+            layoutObserver.observe(document.body);
+
+            // Penjaga Gulir & Fokus Cerdas
+            window.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    e.target.focus();
+                }
+            }, true);
             
             setTimeout(initApp, 300);
         });
