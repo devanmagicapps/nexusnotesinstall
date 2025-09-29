@@ -2,41 +2,91 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panduan Penggunaan Nexus Notes untuk Sulap</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Notes - Panduan Pengguna</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --brand-surface: #F8FAFC; /* slate-50 */
+            --brand-primary: #f59e0b; /* amber-500 */
+            --brand-primary-light: #fef3c7; /* amber-100 */
+            --brand-text-primary: #1e293b; /* slate-800 */
+            --brand-text-secondary: #64748b; /* slate-500 */
+            --brand-card-bg: #ffffff;
+            --brand-border: #e2e8f0; /* slate-200 */
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* slate-50 */
+            background-color: var(--brand-surface);
+            color: var(--brand-text-primary);
         }
-        h1, h2, h3 {
-            font-family: 'Playfair Display', serif;
+        #app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        .prose-custom ul > li::before {
-            content: '✓';
-            color: #4f46e5; /* indigo-600 */
+        h1, h2, h3, h4 {
+            font-family: 'Playfair+Display', serif;
+        }
+        .app-view {
+            flex-grow: 1;
+            overflow-y: auto;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .app-view.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        .instruction-card {
+            background-color: var(--brand-card-bg);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid var(--brand-border);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Changed from space-between */
+            height: 180px;
+        }
+        .instruction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .detail-content kbd {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            padding: 0.2em 0.5em;
+            border-radius: 6px;
             font-weight: 600;
-            margin-right: 0.75rem;
+            font-size: 0.9em;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
         }
-        .prose-custom ul > li {
-            padding-left: 0;
-            list-style: none;
-        }
-        .prose-custom ol {
+        .detail-content ol {
             list-style: none;
             counter-reset: item;
             padding-left: 0;
         }
-        .prose-custom ol > li {
+        .detail-content ol > li {
             padding-left: 2.5rem;
             position: relative;
             margin-bottom: 0.75rem;
         }
-        .prose-custom ol > li::before {
+        .detail-content ol > li::before {
             content: counter(item);
             counter-increment: item;
             position: absolute;
@@ -44,158 +94,210 @@
             top: 0;
             width: 2rem;
             height: 2rem;
-            background-color: #e0e7ff; /* indigo-200 */
-            color: #4338ca; /* indigo-700 */
+            background-color: #fef3c7;
+            color: #92400e;
             border-radius: 9999px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-family: 'Inter', sans-serif;
             font-size: 0.875rem;
         }
-        .prose-custom code {
-            background-color: #1e293b; /* slate-800 */
-            color: #a78bfa; /* violet-400 */
-            padding: 0.2em 0.5em;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-        .prose-custom blockquote {
-            border-left: none;
-            background-color: #eef2ff; /* indigo-50 */
-            color: #3730a3; /* indigo-800 */
-            border-radius: 0.5rem;
+         .detail-content blockquote {
+            border-left-width: 4px;
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
+            color: #78350f;
             padding: 1rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-        .header-gradient {
-            background: radial-gradient(circle, rgba(240,244,255,1) 0%, rgba(255,255,255,0) 70%);
+            margin: 1.5rem 0;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-700">
+<body class="antialiased">
 
-    <div class="container mx-auto max-w-3xl px-4 py-8 sm:py-16">
-        
-        <header class="text-center mb-16 relative header-gradient pb-8">
-            <div class="absolute -top-8 left-1/2 -translate-x-1/2 w-24 h-24 flex items-center justify-center">
-                <img src="./icons/images192.png" alt="Logo Aplikasi" class="w-20 h-20 opacity-50">
-            </div>
-            <h1 class="text-4xl sm:text-5xl font-bold text-slate-900 pt-16">Panduan Lengkap Nexus Notes</h1>
-            <p class="mt-4 text-lg text-indigo-600 font-semibold">Senjata Rahasia Digital Pesulap</p>
-        </header>
-
-        <div class="prose-custom max-w-none space-y-8">
-            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 ring-1 ring-slate-900/5">
-                <p class="text-lg leading-8">Selamat datang di Nexus Notes! Di permukaan, ini adalah aplikasi catatan biasa. Tapi di baliknya, ini adalah alat sulap canggih yang dirancang untuk menciptakan keajaiban yang mustahil. Panduan ini dibuat khusus untuk Anda dengan penjelasan sederhana, tanpa istilah teknis yang rumit.</p>
-            </div>
-
-            <!-- Bagian 1 -->
-            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 ring-1 ring-slate-900/5">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="flex-shrink-0 bg-indigo-100 text-indigo-600 rounded-lg p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                    </div>
-                    <h2 class="text-2xl font-bold text-slate-900 m-0">Bagian 1: Penyamaran Sempurna</h2>
-                </div>
-                <p>Kunci utama adalah penyamaran. Aplikasi ini harus terlihat seperti aplikasi catatan biasa. Semakin Anda mahir menggunakannya secara normal, semakin kuat efek sulapnya nanti.</p>
-                <ul>
-                    <li><strong>Membuat Catatan Baru:</strong> Tekan tombol <code>+</code> di pojok kanan bawah.</li>
-                    <li><strong>Menyimpan Catatan:</strong> Gunakan ikon <em>save</em> di pojok kanan atas.</li>
-                    <li><strong>Dasar-Dasar Lain:</strong> Membuka, mengedit, dan menghapus catatan sama seperti aplikasi lainnya.</li>
-                </ul>
-                <p><strong>Latihan Wajib:</strong> Buat beberapa catatan palsu seperti "Daftar Belanja" atau "Ide Sulap". Biarkan teman Anda melihatnya sekilas agar mereka yakin ini aplikasi biasa.</p>
-            </div>
-
-            <!-- Bagian 2 -->
-            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 ring-1 ring-slate-900/5">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="flex-shrink-0 bg-indigo-100 text-indigo-600 rounded-lg p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H5v-2H3v-2H1.75a1.75 1.75 0 01-1.75-1.75V11C0 9.06 1.56 7.5 3.5 7.5h.093c.312-.755.75-1.428 1.257-2.001L6.5 4.5l2-2L11 4.086A10.97 10.97 0 0115 7z" /></svg>
-                    </div>
-                    <h2 class="text-2xl font-bold text-slate-900 m-0">Bagian 2: Membuka Pintu Rahasia</h2>
-                </div>
-                <p>Di sinilah keajaiban dimulai. Aplikasi ini memiliki panel pengaturan rahasia yang tersembunyi. Hanya Anda yang tahu cara membukanya.</p>
-                <h3 class="font-semibold text-slate-800">Cara Membuka Panel Rahasia:</h3>
-                <ol>
-                    <li>Dari halaman utama, tekan <code>+</code> untuk membuat catatan baru.</li>
-                    <li>Di bagian <strong>Judul</strong>, ketik kata kunci rahasia.</li>
-                    <li>Kata kunci bawaan adalah: <code>KUNCI</code> (harus huruf besar).</li>
-                </ol>
-                <p>Begitu Anda mengetik kata kunci, layar akan langsung berubah menjadi <strong>Panel Pengaturan Rahasia</strong>. Di sinilah semua trik sulap diatur.</p>
-                <blockquote>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span><strong>Tips Profesional:</strong> Ubah kata kunci <code>KUNCI</code> menjadi kata lain di dalam panel ini agar lebih personal dan rahasia!</span>
-                </blockquote>
-            </div>
-
-            <!-- Bagian 3 -->
-            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 ring-1 ring-slate-900/5">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="flex-shrink-0 bg-indigo-100 text-indigo-600 rounded-lg p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-                    </div>
-                    <h2 class="text-2xl font-bold text-slate-900 m-0">Bagian 3: Dua Trik Sulap Utama</h2>
-                </div>
-                
-                <h3 class="text-xl font-bold text-slate-800 mt-8">Trik #1: Efek Halusinasi</h3>
-                <p><strong>Efeknya:</strong> Anda menunjukkan daftar benda. Penonton mengingat satu. Dengan satu sentuhan ajaib di layar, seluruh daftar berubah total!</p>
-                <h4 class="font-semibold mt-4 text-slate-600">Persiapan:</h4>
-                <ol>
-                    <li>Masuk ke <strong>Panel Pengaturan Rahasia</strong>.</li>
-                    <li>Pastikan <strong>Mode Operasi</strong> adalah <strong>"Hallucination"</strong>.</li>
-                    <li>Isi <strong>Daftar Awal</strong> (yang dilihat penonton) dan <strong>Daftar Akhir</strong> (hasil perubahan). Simpan keduanya.</li>
-                    <li>Keluar dari panel pengaturan.</li>
-                </ol>
-                <h4 class="font-semibold mt-4 text-slate-600">Eksekusi:</h4>
-                <ol>
-                    <li>Di daftar catatan Anda, buka catatan yang telah dibuat secara otomatis untuk trik ini.</li>
-                    <li>Tunjukkan ke penonton dan minta mereka mengingat satu benda.</li>
-                    <li><strong>Gerakan Rahasia:</strong> Palingkan ponsel, lalu <strong>sentuh (tap) sekali saja di area daftar tulisan</strong>.</li>
-                    <li>Tunjukkan kembali. Daftar telah berubah total. Benda pilihan mereka lenyap!</li>
-                </ol>
-
-                <h3 class="text-xl font-bold text-slate-800 mt-10">Trik #2: Membaca Pikiran</h3>
-                <p><strong>Efeknya:</strong> Penonton memilih satu benda dari daftar bernomor. Tanpa bertanya, Anda tahu persis apa yang mereka pilih.</p>
-                <p><strong>Penting:</strong> Trik ini memerlukan <strong>seorang asisten rahasia</strong> dengan perangkat lain (ponsel/laptop).</p>
-                <h4 class="font-semibold mt-4 text-slate-600">Persiapan:</h4>
-                <ol>
-                    <li><strong>Di Ponsel Anda:</strong> Di panel rahasia, pilih mode <strong>"MindReading"</strong>, atur <strong>"Custom ID"</strong> (misal: <code>1234</code>), dan siapkan daftar benda Anda.</li>
-                    <li><strong>Di Perangkat Asisten:</strong> Buka file <code>assistant_controller.html</code>, masukkan ID yang sama (<code>1234</code>), dan hubungkan.</li>
-                </ol>
-                <h4 class="font-semibold mt-4 text-slate-600">Eksekusi:</h4>
-                <ol>
-                    <li>Di daftar catatan Anda, buka catatan yang telah dibuat secara otomatis untuk trik Membaca Pikiran.</li>
-                    <li>Minta penonton memilih nomor dan memberitahukannya pada asisten Anda.</li>
-                    <li>Asisten Anda menekan nomor yang sesuai di perangkat mereka.</li>
-                    <li><strong>Gerakan Rahasia:</strong> Ambil ponsel, lalu <strong>tekan dan tahan jari Anda di layar selama satu detik</strong>. Judul catatan akan berubah menjadi jawaban yang benar.</li>
-                    <li>Lepaskan jari Anda, judul akan kembali normal. Sekarang, ungkapkan pikiran mereka dengan gaya!</li>
-                </ol>
-            </div>
-
-            <!-- Bagian 4 -->
-            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 ring-1 ring-slate-900/5">
-                 <div class="flex items-center gap-4 mb-6">
-                    <div class="flex-shrink-0 bg-indigo-100 text-indigo-600 rounded-lg p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                    </div>
-                    <h2 class="text-2xl font-bold text-slate-900 m-0">Bagian 4: Tips & Trik Tambahan</h2>
-                </div>
-                <ul>
-                    <li><strong>Lupa Kata Kunci?</strong> Buat catatan baru, ketik judul <code>help</code>. Sebuah jendela bantuan akan muncul dan menunjukkan kata kunci Anda.</li>
-                    <li><strong>Berlatih:</strong> Latih gerakan rahasia hingga mulus dan tidak mencurigakan.</li>
-                    <li><strong>Jaga Kerahasiaan:</strong> Jangan pernah tunjukkan Panel Pengaturan kepada siapapun.</li>
-                    <li><strong>Koneksi Internet:</strong> Trik Membaca Pikiran memerlukan koneksi internet untuk Anda dan asisten.</li>
-                </ul>
-                <p class="mt-8 text-center font-semibold text-slate-800">Selamat berlatih dan selamat menciptakan keajaiban!</p>
-            </div>
-
-        </div>
+    <div id="app">
+        <!-- Konten akan dirender oleh JavaScript di sini -->
     </div>
 
+    <script>
+        // --- DATA KONTEN INSTRUKSI ---
+        const instructions = [
+            {
+                id: 'pendahuluan',
+                title: 'Pendahuluan',
+                description: 'Selamat datang di Nexus Notes. Aplikasi sulap canggih dengan penyamaran sempurna.',
+                content: `
+                    <h2 class="text-3xl font-bold mb-6">Pendahuluan</h2>
+                    <p class="text-lg leading-relaxed">Selamat datang di Nexus Notes by Devan Magic Apps x Heri Sanjaya. Aplikasi ini dirancang untuk berfungsi seperti aplikasi catatan biasa, namun memiliki fungsi rahasia untuk keperluan sulap. Panduan ini menjelaskan cara menggunakan semua fiturnya secara lengkap.</p>
+                `
+            },
+            {
+                id: 'penyesuaian',
+                title: 'Penyesuaian Awal',
+                description: 'Cara membuat aplikasi terlihat normal dan meyakinkan di mata penonton.',
+                content: `
+                    <h2 class="text-3xl font-bold mb-6">1. Penyesuaian</h2>
+                    <p class="mb-4">Agar aplikasi terlihat lebih meyakinkan, disarankan untuk membuat beberapa catatan contoh (notes dummy). Aplikasi ini akan bertindak seperti aplikasi catatan pada umumnya.</p>
+                    <ul class="space-y-3 mt-4 pl-5 list-disc">
+                        <li><strong>Membuat Catatan:</strong> Tekan tombol <kbd>+</kbd> kuning di pojok kanan bawah.</li>
+                        <li><strong>Menyimpan Catatan:</strong> Setelah selesai menulis, tekan ikon simpan (save) di pojok kanan atas untuk kembali ke daftar utama. Catatan tersimpan secara otomatis.</li>
+                        <li><strong>Mengedit & Menghapus:</strong> Buka catatan dari daftar untuk mengedit, atau gunakan ikon hapus (trash) saat catatan terbuka.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 'pengaturan',
+                title: 'Mengakses Pengaturan',
+                description: 'Cara membuka panel rahasia tempat semua keajaiban diatur.',
+                content: `
+                    <h2 class="text-3xl font-bold mb-6">2. Mengakses Pengaturan</h2>
+                    <p class="mb-4">Semua pengaturan sulap ada di dalam panel yang tersembunyi. Berikut cara membukanya:</p>
+                    <ol>
+                        <li>Tekan tombol <kbd>+</kbd> untuk membuat catatan baru.</li>
+                        <li>Di bagian <strong>Judul</strong>, ketik kata kunci rahasia Anda.</li>
+                        <li>Kata kunci standar adalah <strong>“KUNCI”</strong>.</li>
+                    </ol>
+                    <p class="mt-6">Setelah kata kunci diketik, Anda akan langsung masuk ke <strong>Panel Pengaturan Rahasia</strong>. Di sini Anda bisa mengubah kata kunci, mengatur ID, dan memilih mode sulap.</p>
+                `
+            },
+            {
+                id: 'notes-switch',
+                title: 'Mode: Notes Switch',
+                description: 'Efek menukar seluruh isi daftar catatan tepat di depan mata penonton.',
+                content: `
+                    <h2 class="text-3xl font-bold mb-6">Mode #1: Notes Switch</h2>
+                    <blockquote>
+                        <p class="font-semibold !my-0"><strong>Efek:</strong> Anda menunjukkan sebuah list kepada penonton dan meminta mereka untuk memikirkan satu item. Lalu anda bilang “saya akan menghapus salah satu item yang ada di sini yang kemungkinan itu adalah benda yang kamu fikirkan. Dan benar, item yang mereka fikirkan sudah tidak ada di list. Tentu ini hanya efek default, anda bisa menggunakan mode ini untuk segala efek mentalism yang memanfaatkan fitur ini.</p>
+                    </blockquote>
+                    <h3 class="text-2xl font-bold mt-8 mb-4">Persiapan:</h3>
+                    <ol>
+                        <li>Masuk ke Panel Rahasia.</li>
+                        <li>Pilih <strong>Mode Operasi</strong> ke <kbd>Notes Switch</kbd>.</li>
+                        <li>Atur <strong>"Judul Mode Notes Switch"</strong> (contoh: "Daftar Belanja").</li>
+                        <li>Isi <strong>"Daftar Awal"</strong> (yang akan dilihat penonton pertama kali).</li>
+                        <li>Isi <strong>"Daftar Akhir"</strong> (daftar hasil perubahan).</li>
+                        <li>Simpan kedua daftar dan kembali ke halaman utama. Sebuah catatan baru dengan judul yang Anda atur akan muncul secara otomatis.</li>
+                    </ol>
+                    <h3 class="text-2xl font-bold mt-8 mb-4">Pelaksanaan:</h3>
+                    <ol>
+                        <li>Buka catatan "Daftar Belanja" tersebut.</li>
+                        <li>Minta penonton membaca dan mengingat satu benda dari daftar awal.</li>
+                        <li><strong>Aksi Rahasia:</strong> Cukup sentuh (tap) sekali saja di area tulisan di dalam catatan.</li>
+                        <li>Isi catatan akan langsung berubah menjadi Daftar Akhir.</li>
+                    </ol>
+                `
+            },
+            {
+                id: 'peek-mode',
+                title: 'Mode: Peek',
+                description: 'Efek membaca pikiran penonton menggunakan bantuan website dadu.',
+                content: `
+                     <h2 class="text-3xl font-bold mb-6">Mode #2: Mode Peek - Menggunakan Website Dadu</h2>
+                    <blockquote class="mt-4">
+                        <p class="font-semibold !my-0"><strong>Efek:</strong> Penonton membuka website dadu di ponsel mereka (atau ponsel Anda), mengacak angka sesuka hati, lalu melihat item yang sesuai dengan angka mereka di aplikasi catatan Anda. Tanpa mereka sadari, Anda tahu persis item apa yang sedang mereka pikirkan.</p>
+                    </blockquote>
+                     <h3 class="text-2xl font-bold mt-8 mb-4">Persiapan:</h3>
+                    <ol>
+                        <li>Masuk ke Panel Rahasia.</li>
+                        <li>Pilih <strong>Mode Operasi</strong> ke <kbd>Peek</kbd>.</li>
+                        <li>Atur <strong>"ID Kustom (4 Digit)"</strong>. Contoh: <kbd>1234</kbd>. ID ini adalah kunci rahasia yang menghubungkan aplikasi catatan Anda dengan website dadu.</li>
+                        <li>Isi <strong>"Daftar Awal"</strong>. Aplikasi akan otomatis memberi nomor pada daftar ini.</li>
+                        <li>Pilih <strong>"Sub-mode Peek"</strong> yang akan digunakan: <kbd>Hold to Peek</kbd> atau <kbd>Type to Peek</kbd>.</li>
+                        <li>Kembali ke halaman utama. Catatan untuk mode ini akan muncul otomatis.</li>
+                    </ol>
+                    <h3 class="text-2xl font-bold mt-8 mb-4">Pelaksanaan:</h3>
+                    <ol>
+                        <li>Langkah 1: buka alamat website <strong>lempardadu.vercel.app</strong> di hp penonton, masukan 4 digit id yg anda setup di awal. Di hp anda buka notes.</li>
+                        <li>Langkah 2: Minta mereka untuk memilih jumlah dadu secara bebas, lalu menekan tombol "Acak Dadu" beberapa kali sampai mereka puas dan menyukai angka total yang muncul di layar mereka.</li>
+                        <li>Langkah 3: tunjukan list di notes app anda dan minta penonton untuk melihat nomor berapa yang mereka dapatkan di website dadu, lalu mencari item yang sesuai dengan nomor tersebut di daftar catatan Anda. Minta mereka untuk fokus pada item itu.</li>
+                        <li>Langkah 4: Setelah mereka melihat dan memikirkan itemnya, inilah saatnya Anda melakukan <strong>Aksi Rahasia</strong> untuk mengetahui item tersebut:
+                            <ul class="list-disc space-y-3 mt-4 pl-6">
+                                <li><strong>Jika anda memilih sub-mode "Hold to Peek":</strong> anda bisa melakukan peek dengan cara tekan dan tahan jari Anda kosong di sebelah kanan area tulisan (dekat tepi layar). Judul catatan akan berubah menjadi benda pilihan penonton. Lepaskan jari untuk mengembalikannya seperti semula.</li>
+                                <li><strong>Jika anda memilih sub-mode "Type to Peek":</strong> setelah penonton memikirkan satu item, kembali ke layar utama lalu buat catatan baru (tekan <kbd>+</kbd>), lalu mulai mengetik huruf apa saja random pun tidak masalah. Benda pilihan penonton akan muncul huruf per huruf ketika anda mengetik, seolah Anda sedang mengetiknya secara intuitif. Di sini anda bisa menebak bendanya dari beberapa huruf yang muncul sehingga untuk huruf-huruf sisanya anda bisa terlihat benar-benar menekan tombol yang tepat.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                `
+            },
+            {
+                id: 'info',
+                title: 'Informasi Penting',
+                description: 'Tips, trik, dan persyaratan yang perlu Anda ketahui agar semua berjalan lancar.',
+                content: `
+                    <h2 class="text-3xl font-bold mb-6">4. Informasi Penting</h2>
+                     <ul class="space-y-4 mt-4 pl-5 list-disc text-base">
+                        <li><strong>Lupa Kata Kunci?</strong> Buat catatan baru, beri judul <kbd>help</kbd>, dan sebuah pesan akan muncul memberitahu kata kunci Anda.</li>
+                        <li><strong>ID Kustom adalah Kunci:</strong> ID Kustom adalah satu-satunya penghubung antara aplikasi catatan Anda dan website dadu. Pastikan tidak ada yang melihatnya saat Anda mengaturnya di panel rahasia.</li>
+                        <li><strong>Berlatih:</strong> Biasakan diri dengan alur pertunjukan dan aksi rahasia agar terlihat natural.</li>
+                        <li><strong>Koneksi Internet:</strong> Mode "Peek" memerlukan koneksi internet yang stabil agar aplikasi catatan Anda bisa menerima angka dari website dadu.</li>
+                    </ul>
+                `
+            }
+        ];
+
+        // --- LOGIKA APLIKASI ---
+        const appContainer = document.getElementById('app');
+        let activeSectionId = null;
+
+        function openSection(id) {
+            activeSectionId = id;
+            render();
+        }
+
+        function goBack() {
+            activeSectionId = null;
+            render();
+        }
+
+        function render() {
+            if (activeSectionId === null) {
+                // Tampilan Daftar
+                appContainer.innerHTML = `
+                    <header class="flex-shrink-0 sticky top-0 bg-brand-surface/80 backdrop-blur-md z-10 p-4 border-b border-brand-border">
+                        <h1 class="text-3xl font-bold text-brand-text-primary">Panduan Pengguna</h1>
+                    </header>
+                    <main class="app-view p-4">
+                        <div class="card-grid">
+                            ${instructions.map(item => `
+                                <div class="instruction-card" onclick="openSection('${item.id}')">
+                                    <div>
+                                        <h3 class="text-lg font-bold text-brand-text-primary">${item.title}</h3>
+                                        <p class="text-sm text-brand-text-secondary mt-2">${item.description}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </main>
+                    <footer class="flex-shrink-0 p-4">
+                        <button onclick="window.location.href='index.html'" class="w-full bg-amber-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-amber-600 transition">
+                            Kembali ke Aplikasi Utama
+                        </button>
+                    </footer>
+                `;
+            } else {
+                // Tampilan Detail
+                const section = instructions.find(item => item.id === activeSectionId);
+                appContainer.innerHTML = `
+                    <header class="flex-shrink-0 sticky top-0 bg-brand-surface/80 backdrop-blur-md z-10 p-2 flex items-center border-b border-brand-border">
+                        <button onclick="goBack()" class="p-2 rounded-full hover:bg-slate-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <h2 class="text-xl font-bold text-brand-text-primary ml-2 truncate">${section.title}</h2>
+                    </header>
+                    <main class="app-view p-4 sm:p-6 detail-content">
+                        ${section.content}
+                    </main>
+                `;
+            }
+        }
+
+        window.openSection = openSection;
+        window.goBack = goBack;
+
+        document.addEventListener('DOMContentLoaded', render);
+
+    </script>
 </body>
 </html>
