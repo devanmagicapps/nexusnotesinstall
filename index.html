@@ -31,29 +31,26 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Menggunakan font Inter secara global dan aturan anti-scroll yang lebih kuat */
-        html {
-            height: 100%;
-            overflow: hidden;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            position: fixed; /* Kunci utama untuk mencegah scroll */
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            overflow: hidden; /* Mencegah scrollbar muncul */
+        /* [PEROMBAKAN TOTAL PENGUNCIAN GULIR] */
+        html, body {
+            height: 100%; /* Fondasi: Buat html dan body mengisi seluruh tinggi */
+            width: 100%;
+            overflow: hidden; /* Garis pertahanan pertama */
             margin: 0;
             padding: 0;
-            width: 100%; /* Ditambahkan untuk konsistensi */
+            font-family: 'Inter', sans-serif;
         }
-        
-        #app, #app-content {
+
+        #app {
+            height: 100vh; /* Kunci Utama: Buat #app setinggi viewport, tidak bisa lebih */
+            width: 100vw;
+            overflow: hidden; /* Sangkar utama: semua yang meluap dari #app akan disembunyikan */
+            position: relative;
+        }
+
+        #app-content {
             height: 100%;
             width: 100%;
-            overflow: hidden; /* Memastikan kontainer utama juga tidak bisa scroll */
         }
 
         /* Custom scrollbar untuk tampilan dark/minimalis */
@@ -84,30 +81,12 @@
             -ms-user-select: none; /* IE 10+ and Edge */
             user-select: none; /* Standard syntax */
         }
-
-        /* Gaya untuk Floating Debug Log */
-        #debug-log-container {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.75);
-            color: #0f0; /* Hijau terang untuk visibilitas */
-            padding: 8px;
-            border-radius: 8px;
-            z-index: 9999;
-            font-family: monospace;
-            font-size: 11px;
-            line-height: 1.4;
-            width: 220px;
-            opacity: 0.9;
-            pointer-events: none; /* Agar tidak mengganggu interaksi */
-        }
     </style>
 </head>
 <body class="bg-white">
 
-    <div id="app" class="h-screen w-screen relative">
-        <div id="app-content" class="h-full w-full">
+    <div id="app">
+        <div id="app-content">
             <!-- Konten aplikasi utama akan dirender di sini -->
             <div class="flex items-center justify-center h-full">
                 <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -120,8 +99,6 @@
         <div id="modal-container"></div>
         <!-- Kontainer untuk notifikasi floating -->
         <div id="status-container" class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
-        <!-- Kontainer untuk Debug Log -->
-        <div id="debug-log-container"></div>
     </div>
 
     <!-- Firebase CDN Imports -->
@@ -662,40 +639,8 @@
             
             Object.assign(window, { handleOpenNote, handleBackToList, handleNewNote, handleSaveNote, handleDeleteNote, handleNotesSwitchTrigger, handleModeChange, handlePeekSubModeChange, handleLiveInput, startLongPress, cancelLongPress, handleTypeToPeek, handleSettingUpdate, handleCustomIdUpdate, handleItemsListUpdate, hideHelpModal });
         };
-        
-        // --- DEBUG & SCROLL GUARDIAN ---
-        const updateScrollLockLog = () => {
-            const debugLogContainer = document.getElementById('debug-log-container');
-            if (!debugLogContainer) return;
-
-            const html = document.documentElement;
-            const body = document.body;
-            const htmlStyle = window.getComputedStyle(html);
-            const bodyStyle = window.getComputedStyle(body);
-
-            const htmlStatus = `HTML: ovf=${htmlStyle.overflow}, sH/cH=${html.scrollHeight}/${html.clientHeight}`;
-            const bodyStatus = `BODY: ovf=${bodyStyle.overflow}, pos=${bodyStyle.position}`;
-
-            const isHtmlLocked = htmlStyle.overflow === 'hidden' && html.scrollHeight <= html.clientHeight;
-            const isBodyLocked = bodyStyle.overflow === 'hidden' && bodyStyle.position === 'fixed';
-            const overallStatus = (isHtmlLocked && isBodyLocked) ? 'LOCKED' : '!!!UNLOCKED!!!';
-            
-            debugLogContainer.innerHTML = `
-                <strong>${overallStatus}</strong><br>
-                <small>${htmlStatus}</small><br>
-                <small>${bodyStatus}</small>
-            `;
-
-            // Atur warna berdasarkan status untuk visibilitas
-            debugLogContainer.style.color = (overallStatus === 'LOCKED') ? '#0f0' : '#f00';
-            debugLogContainer.style.borderColor = (overallStatus === 'LOCKED') ? '#0f0' : '#f00';
-        };
-
 
         window.addEventListener('load', () => {
-            // Jalankan pemantauan status secara berkala
-            setInterval(updateScrollLockLog, 1000); // Cek setiap detik
-            
             setTimeout(initApp, 300);
         });
 
