@@ -117,6 +117,7 @@
             Settings: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>`,
             Zap: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>`,
             Edit: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,
+            Info: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>`,
         };
 
         // --- KONFIGURASI FIREBASE ---
@@ -447,6 +448,12 @@
                            <button onclick="handleItemsListUpdate('start', document.getElementById('start-list-input').value)" class="mt-3 py-2 px-4 w-full bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-semibold">Simpan Daftar Awal</button>
                            ${appMode === 'Notes Switch' ? `<textarea id="end-list-input" rows="8" class="mt-4 bg-brand-dark-bg text-gray-200 p-3 rounded-lg resize-none w-full text-sm border border-gray-600 focus:ring-2 focus:ring-amber-500 focus:outline-none">${endItemsList.join('\n')}</textarea><button onclick="handleItemsListUpdate('end', document.getElementById('end-list-input').value)" class="mt-3 py-2 px-4 w-full bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-semibold">Simpan Daftar Akhir</button>` : ''}
                         </div>
+                        <div class="bg-brand-dark-surface p-4 rounded-xl">
+                           <h2 class="text-lg font-bold text-amber-400 mb-2 flex items-center">${Icons.Info} Bantuan</h2>
+                           <a href="instructions.html" target="_blank" class="mt-2 block w-full text-center py-3 px-4 bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-semibold transition-colors">
+                               Buka Panduan Penggunaan
+                           </a>
+                        </div>
                     </div>
                 </div>`;
         };
@@ -481,8 +488,22 @@
                 if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken); else await signInAnonymously(auth);
             } catch (e) { console.error("Gagal inisialisasi Firebase:", e); }
 
+            // --- Default Note Logic ---
+            let initialNotes = getLocalData(STORAGE_KEY, null);
+            if (initialNotes === null) { // Hanya dijalankan saat aplikasi dibuka pertama kali
+                const defaultNote = {
+                    id: 'default-initial-note',
+                    title: 'Baca ini!',
+                    content: 'Segera hapus notes ini kalau anda sudah membaca keseluruhan isinya.\n\nUntuk mengakses tutorial penggunaan aplikasi ini, tekan tombol + di halaman utama dan ketik “KUNCI” di bagian judul. sebuah panel pengaturan akan terbuka dan tombol untuk membuka tutorial ada di paling bawah.\n\Selamat Mencoba!\n\- Devan Magic Apps',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                initialNotes = [defaultNote];
+                saveLocalData(STORAGE_KEY, initialNotes);
+            }
+
             Object.assign(appState, {
-                notes: getLocalData(STORAGE_KEY, []),
+                notes: initialNotes,
                 secretKeyword: getSetting(SECRET_KEYWORD_KEY, 'KUNCI'),
                 appMode: getSetting(APP_MODE_KEY, 'Notes Switch'),
                 peekSubMode: getSetting(PEEK_SUB_MODE_KEY, 'Hold to Peek'),
