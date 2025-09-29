@@ -474,9 +474,11 @@
         const renderNoteList = () => {
             const displayNotes = appState.notes.filter(note => !isMatchingSecretKeyword(note.title, appState.secretKeyword));
             return `
-                <div class="flex flex-col h-full bg-white p-4 light-theme">
-                    <header class="mb-6 flex-shrink-0"><h1 class="text-3xl font-bold text-black">Daftar Catatan</h1></header>
-                    <div class="flex-grow overflow-y-auto space-y-3 pb-24">
+                <div class="flex flex-col h-full bg-white light-theme">
+                    <header class="sticky top-0 z-10 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200">
+                        <h1 class="text-3xl font-bold text-black">Daftar Catatan</h1>
+                    </header>
+                    <div class="flex-grow overflow-y-auto space-y-3 p-4 pb-24">
                         ${displayNotes.length === 0 ? `<p class="text-gray-500 text-center mt-10">Belum ada catatan.</p>` : 
                         displayNotes.map((note) => `
                             <div id="note-${note.id}" class="bg-white p-4 rounded-xl shadow-md cursor-pointer transition duration-200 border-l-4 border-indigo-400 note-item"
@@ -488,7 +490,7 @@
                                 </span>
                             </div>`).join('')}
                     </div>
-                    <button onclick="window.handleNewNote()" class="absolute bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition transform hover:scale-105 active:scale-95">
+                    <button onclick="window.handleNewNote()" class="fixed bottom-6 right-6 p-4 bg-indigo-500 text-white rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 z-20">
                         ${Icons.Plus.replace('dark-icon-filter', '')}
                     </button>
                 </div>`;
@@ -506,8 +508,8 @@
             }
 
             return `
-                <div class="flex flex-col h-full bg-white p-4 light-theme">
-                    <header class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div class="flex flex-col h-full bg-white light-theme">
+                    <header class="sticky top-0 z-10 flex justify-between items-center p-4 bg-white/80 backdrop-blur-md border-b border-gray-200">
                         <button onclick="window.handleBackToList()" class="p-2 text-gray-700 rounded-full hover:bg-gray-100">${Icons.ArrowLeft}</button>
                         <div class="flex space-x-2">
                             ${(appState.activeNoteId && appState.activeNoteId !== 'new' && !isTrickNoteActive) ? `<button onclick="window.handleDeleteNote()" class="p-2 text-red-500 rounded-full hover:bg-red-100">${Icons.Trash2}</button>` : ''}
@@ -516,11 +518,13 @@
                             </button>
                         </div>
                     </header>
-                    <input id="title-editor" type="text" value="${appState.title}" oninput="window.handleLiveInput('title', this.value)"
-                        placeholder="Judul Catatan" class="text-2xl font-semibold p-2 border-b-2 border-gray-100 mb-4 focus:border-indigo-500 outline-none w-full" ${isTrickNoteActive ? 'readonly' : ''} />
-                    <textarea id="content-editor" oninput="window.handleLiveInput('content', this.value)" onkeydown="window.handleTypeToPeek(event)"
-                        placeholder="Isi catatan..." class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
-                        ${extraAttributes} ${isTrickNoteActive || (appState.appMode === 'Peek' && appState.peekSubMode === 'Hold to Peek') ? 'readonly' : ''}>${appState.content}</textarea>
+                    <div class="flex-grow flex flex-col overflow-y-auto p-4">
+                        <input id="title-editor" type="text" value="${appState.title}" oninput="window.handleLiveInput('title', this.value)"
+                            placeholder="Judul Catatan" class="flex-shrink-0 text-2xl font-semibold p-2 border-b-2 border-gray-100 mb-4 focus:border-indigo-500 outline-none w-full" ${isTrickNoteActive ? 'readonly' : ''} />
+                        <textarea id="content-editor" oninput="window.handleLiveInput('content', this.value)" onkeydown="window.handleTypeToPeek(event)"
+                            placeholder="Isi catatan..." class="flex-grow w-full p-2 text-gray-800 resize-none outline-none leading-relaxed text-lg"
+                            ${extraAttributes} ${isTrickNoteActive || (appState.appMode === 'Peek' && appState.peekSubMode === 'Hold to Peek') ? 'readonly' : ''}>${appState.content}</textarea>
+                    </div>
                 </div>`;
         };
 
