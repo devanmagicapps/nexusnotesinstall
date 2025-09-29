@@ -374,12 +374,15 @@
             
             let index = appState.typeToPeekIndex;
             if (index < typeToPeekItem.length) {
+                const editor = event.target;
                 const revealedPart = typeToPeekItem.substring(0, index + 1);
-                // Cara yang BENAR: Panggil setState untuk memicu render yang sah
-                setState({
-                    content: revealedPart,
-                    typeToPeekIndex: index + 1
-                });
+
+                // Langkah 1: Ubah nilai di layar secara langsung (menjaga fokus)
+                editor.value = revealedPart;
+                
+                // Langkah 2: Sinkronkan state secara diam-diam (mencegah bug gulir)
+                appState.content = revealedPart;
+                appState.typeToPeekIndex = index + 1;
             }
         };
         
