@@ -33,18 +33,18 @@
     <style>
         /* [ARSITEKTUR UI BARU DENGAN FLOATING FRAME] */
         html, body {
-            height: 100%;
+            height: 100%; /* Fondasi: Buat html dan body mengisi seluruh tinggi */
             width: 100%;
-            overflow: hidden;
+            overflow: hidden; /* Garis pertahanan pertama */
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif;
         }
 
         #app {
-            height: 100vh;
+            height: 100vh; /* Kunci Utama: Buat #app setinggi viewport, tidak bisa lebih */
             width: 100vw;
-            overflow: hidden;
+            overflow: hidden; /* Sangkar utama: semua yang meluap dari #app akan disembunyikan */
             position: relative;
         }
 
@@ -365,6 +365,7 @@
             }
         };
 
+        // [PERBAIKAN FUNGSI 'TYPE TO PEEK']
         const handleTypeToPeek = (event) => {
             const { appMode, peekSubMode, activeNoteId, typeToPeekItem } = appState;
             if (appMode !== 'Peek' || peekSubMode !== 'Type to Peek' || activeNoteId !== 'new' || !typeToPeekItem) return;
@@ -373,11 +374,12 @@
             
             let index = appState.typeToPeekIndex;
             if (index < typeToPeekItem.length) {
-                const editor = event.target;
                 const revealedPart = typeToPeekItem.substring(0, index + 1);
-                editor.value = revealedPart;
-                appState.content = editor.value;
-                appState.typeToPeekIndex = index + 1;
+                // Cara yang BENAR: Panggil setState untuk memicu render yang sah
+                setState({
+                    content: revealedPart,
+                    typeToPeekIndex: index + 1
+                });
             }
         };
         
